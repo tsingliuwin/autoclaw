@@ -1,0 +1,8 @@
+src/
+tsconfig.json
+.env
+.env.example
+install.bat
+install.sh
+GEMINI.md
+node_modules/

@@ -388,7 +388,16 @@ async function runChat(queryParts: string[], options: any) {
 
   try {
     while (true) {
-      const userInput = await rl.question(chalk.green('? ') + 'You > ');
+      let userInput: string;
+      try {
+        userInput = await rl.question(chalk.green('? ') + 'You > ');
+      } catch (err: any) {
+        if (err.code === 'ABORT_ERR') {
+          console.log(chalk.cyan("\nGoodbye!"));
+          break;
+        }
+        throw err;
+      }
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log(chalk.cyan("Goodbye!"));
@@ -400,7 +409,12 @@ async function runChat(queryParts: string[], options: any) {
       await agent.chat(userInput);
     }
   } catch (err: any) {
-    console.error(chalk.red("Error in chat loop:"), err);
+    if (err.name === 'AbortError' || err.code === 'ABORT_ERR') {
+       // Handled inside loop mostly, but just in case
+       console.log(chalk.cyan("\nGoodbye!"));
+    } else {
+       console.error(chalk.red("Error in chat loop:"), err);
+    }
   } finally {
     rl.close();
   }

@@ -7,15 +7,24 @@ import * as os from 'os';
 const checkLinuxFonts = () => {
   if (os.platform() !== 'linux') return true;
   
-  const commonFontPaths = [
-    '/usr/share/fonts/noto',
-    '/usr/share/fonts/opentype/noto',
-    '/usr/share/fonts/truetype/wqy',
-    '/usr/share/fonts/cjk',
-    '/usr/share/fonts/google-noto-cjk' // Arch/Manjaro sometimes
+  // Check for specific font files rather than just directories
+  const commonFontFiles = [
+    '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc', // Alpine / Some Debian
+    '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', // Debian / Ubuntu
+    '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', // ZenHei
+    '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc' // Arch
   ];
 
-  return commonFontPaths.some(path => fs.existsSync(path));
+  // Also check if fc-list finds any CJK fonts (if available)
+  try {
+      const child_process = require('child_process');
+      const output = child_process.execSync('fc-list :lang=zh', { stdio: 'pipe' }).toString();
+      if (output.length > 0) return true;
+  } catch (e) {
+      // fc-list might not be installed or failed, fall back to file check
+  }
+
+  return commonFontFiles.some(path => fs.existsSync(path));
 };
 
 export const ScreenshotTool: ToolModule = {
@@ -93,7 +102,7 @@ export const ScreenshotTool: ToolModule = {
         await page.addStyleTag({
           content: `
             body, h1, h2, h3, h4, h5, h6, p, span, div, li, a, button, input, textarea {
-              font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif !important;
+              font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif !important;
             }
           `
         });

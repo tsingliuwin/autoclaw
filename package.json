@@ -31,16 +31,20 @@
   "license": "MIT",
   "description": "A lightweight AI agent CLI tool that brings the power of LLMs to your terminal.",
   "dependencies": {
+    "@mozilla/readability": "^0.6.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "dotenv": "^16.4.7",
     "inquirer": "^13.2.2",
+    "jsdom": "^28.0.0",
     "nodemailer": "^8.0.0",
     "openai": "^6.18.0",
-    "ora": "^9.3.0"
+    "ora": "^9.3.0",
+    "playwright": "^1.58.2"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
+    "@types/jsdom": "^27.0.0",
     "@types/node": "^25.2.1",
     "@types/nodemailer": "^7.0.9",
     "ts-node": "^10.9.2",

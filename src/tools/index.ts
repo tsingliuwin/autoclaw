@@ -3,6 +3,7 @@ import { ShellTool, ReadFileTool, WriteFileTool } from './core.js';
 import { EmailTool } from './email.js';
 import { SearchTool } from './search.js';
 import { NotifyTool } from './notify.js';
+import { BrowserTool } from './browser.js';
 
 // Central Registry of all available tools
 export const toolRegistry: ToolModule[] = [
@@ -11,7 +12,8 @@ export const toolRegistry: ToolModule[] = [
   WriteFileTool,
   EmailTool,
   SearchTool,
-  NotifyTool
+  NotifyTool,
+  BrowserTool
 ];
 
 export function getToolDefinitions() {

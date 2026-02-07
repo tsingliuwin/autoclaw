@@ -3,28 +3,41 @@ import { ToolModule } from './interface.js';
 import * as fs from 'fs';
 import * as os from 'os';
 
-// Helper to check for common CJK font paths on Linux
+// Helper to check for common CJK and Emoji font paths on Linux
 const checkLinuxFonts = () => {
-  if (os.platform() !== 'linux') return true;
+  if (os.platform() !== 'linux') return { cjk: true, emoji: true };
   
   // Check for specific font files rather than just directories
-  const commonFontFiles = [
+  const commonCJKFontFiles = [
     '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc', // Alpine / Some Debian
     '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc', // Debian / Ubuntu
     '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc', // ZenHei
     '/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc' // Arch
   ];
 
-  // Also check if fc-list finds any CJK fonts (if available)
+  const commonEmojiFontFiles = [
+    '/usr/share/fonts/noto/NotoColorEmoji.ttf',
+    '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
+    '/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf'
+  ];
+
+  const hasCJK = commonCJKFontFiles.some(path => fs.existsSync(path));
+  const hasEmoji = commonEmojiFontFiles.some(path => fs.existsSync(path));
+
+  // Also check if fc-list finds fonts (if available) - secondary check
   try {
       const child_process = require('child_process');
-      const output = child_process.execSync('fc-list :lang=zh', { stdio: 'pipe' }).toString();
-      if (output.length > 0) return true;
+      const cjkOutput = child_process.execSync('fc-list :lang=zh', { stdio: 'pipe' }).toString();
+      const emojiOutput = child_process.execSync('fc-list :family=Emoji', { stdio: 'pipe' }).toString(); // Approximate check
+      
+      return {
+          cjk: hasCJK || cjkOutput.length > 0,
+          emoji: hasEmoji || emojiOutput.length > 0
+      };
   } catch (e) {
       // fc-list might not be installed or failed, fall back to file check
+      return { cjk: hasCJK, emoji: hasEmoji };
   }
-
-  return commonFontFiles.some(path => fs.existsSync(path));
 };
 
 export const ScreenshotTool: ToolModule = {
@@ -48,7 +61,7 @@ export const ScreenshotTool: ToolModule = {
           },
           fullPage: {
             type: "boolean",
-            description: "If true, takes a screenshot of the full scrollable page instead of just the viewport."
+            description: "If true (default), takes a screenshot of the full scrollable page. Set to false for viewport only."
           }
         },
         required: ["url", "outputPath"]
@@ -57,9 +70,16 @@ export const ScreenshotTool: ToolModule = {
   },
     handler: async (args: any, config: any) => {
       // Check for fonts on Linux to prevent "tofu" characters
-      if (os.platform() === 'linux' && !checkLinuxFonts()) {
-        console.warn("⚠️  Warning: No CJK fonts detected. Chinese characters may appear as squares (tofu).");
-        console.warn("   Run 'apk add font-noto-cjk' (Alpine) or 'apt-get install fonts-noto-cjk' (Debian/Ubuntu).");
+      if (os.platform() === 'linux') {
+          const fonts = checkLinuxFonts();
+          if (!fonts.cjk) {
+            console.warn("⚠️  Warning: No CJK fonts detected. Chinese characters may appear as squares (tofu).");
+            console.warn("   Run 'apk add font-noto-cjk' (Alpine) or 'apt-get install fonts-noto-cjk' (Debian/Ubuntu).");
+          }
+          if (!fonts.emoji) {
+            console.warn("⚠️  Warning: No Emoji fonts detected. Emojis may appear as squares.");
+            console.warn("   Run 'apk add font-noto-emoji' (Alpine) or 'apt-get install fonts-noto-color-emoji' (Debian/Ubuntu).");
+          }
       }
 
       let browser;
@@ -97,12 +117,12 @@ export const ScreenshotTool: ToolModule = {
         
         // Inject CSS to force common Chinese fonts
         // Note: For Docker environments (Alpine/Debian), ensure fonts are installed.
-        // Alpine: apk add font-noto-cjk
-        // Debian/Ubuntu: apt-get install fonts-noto-cjk fonts-wqy-zenhei
+        // Alpine: apk add font-noto-cjk font-noto-emoji
+        // Debian/Ubuntu: apt-get install fonts-noto-cjk fonts-wqy-zenhei fonts-noto-color-emoji
         await page.addStyleTag({
           content: `
             body, h1, h2, h3, h4, h5, h6, p, span, div, li, a, button, input, textarea {
-              font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Noto Sans SC", sans-serif !important;
+              font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", "Noto Sans SC", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif !important;
             }
           `
         });
@@ -115,7 +135,7 @@ export const ScreenshotTool: ToolModule = {
   
         await page.screenshot({ 
           path: args.outputPath, 
-          fullPage: args.fullPage || false 
+          fullPage: args.fullPage !== false // Default to true if undefined
         });
   
         return `Successfully captured screenshot of ${args.url} and saved to ${args.outputPath}`;

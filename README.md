@@ -156,18 +156,18 @@ Built-in utility to provide the agent with the current system time, ensuring acc
 ## Docker Support
 
 ### Chinese Font Issues in Screenshots
-When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts.
+When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts. Emojis (e.g., 🔥) may also appear as squares.
 
-**Solution:** Install CJK (Chinese/Japanese/Korean) fonts in your container.
+**Solution:** Install CJK (Chinese/Japanese/Korean) and Emoji fonts in your container.
 
 **For Debian/Ubuntu:**
 ```bash
-apt-get update && apt-get install -y fonts-noto-cjk fonts-wqy-zenhei
+apt-get update && apt-get install -y fonts-noto-cjk fonts-wqy-zenhei fonts-noto-color-emoji
 ```
 
 **For Alpine Linux:**
 ```bash
-apk add font-noto-cjk
+apk add font-noto-cjk font-noto-emoji
 ```
 
 ## License

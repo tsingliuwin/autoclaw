@@ -64,6 +64,9 @@ export const ScreenshotTool: ToolModule = {
         await page.goto(args.url, { waitUntil: 'networkidle', timeout: 30000 });
         
         // Inject CSS to force common Chinese fonts
+        // Note: For Docker environments (Alpine/Debian), ensure fonts are installed.
+        // Alpine: apk add font-noto-cjk
+        // Debian/Ubuntu: apt-get install fonts-noto-cjk fonts-wqy-zenhei
         await page.addStyleTag({
           content: `
             body, h1, h2, h3, h4, h5, h6, p, span, div, li, a, button, input, textarea {

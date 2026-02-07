@@ -38,8 +38,11 @@ interface AppConfig {
   tavilyApiKey?: string;
   autoConfirm?: boolean;
   feishuWebhook?: string;
+  feishuKeyword?: string;
   dingtalkWebhook?: string;
+  dingtalkKeyword?: string;
   wecomWebhook?: string;
+  wecomKeyword?: string;
 }
 
 function loadJsonConfig(filePath: string): AppConfig {
@@ -223,6 +226,12 @@ async function runSetup() {
         mask: '*'
       },
       {
+        type: 'input',
+        name: 'feishuKeyword',
+        message: 'Feishu Security Keyword (Optional):',
+        default: currentConfig.feishuKeyword
+      },
+      {
         type: 'password',
         name: 'dingtalkWebhook',
         message: currentConfig.dingtalkWebhook
@@ -231,18 +240,33 @@ async function runSetup() {
         mask: '*'
       },
       {
+        type: 'input',
+        name: 'dingtalkKeyword',
+        message: 'DingTalk Security Keyword (Optional):',
+        default: currentConfig.dingtalkKeyword
+      },
+      {
         type: 'password',
         name: 'wecomWebhook',
         message: currentConfig.wecomWebhook
           ? `WeCom Webhook (Leave empty to keep ${maskSecret(currentConfig.wecomWebhook)}):`
           : 'WeCom Webhook (Optional):',
         mask: '*'
+      },
+      {
+        type: 'input',
+        name: 'wecomKeyword',
+        message: 'WeCom Security Keyword (Optional):',
+        default: currentConfig.wecomKeyword
       }
     ]);
     notifyConfig = {
       feishuWebhook: notifyAnswers.feishuWebhook || currentConfig.feishuWebhook,
+      feishuKeyword: notifyAnswers.feishuKeyword || currentConfig.feishuKeyword,
       dingtalkWebhook: notifyAnswers.dingtalkWebhook || currentConfig.dingtalkWebhook,
-      wecomWebhook: notifyAnswers.wecomWebhook || currentConfig.wecomWebhook
+      dingtalkKeyword: notifyAnswers.dingtalkKeyword || currentConfig.dingtalkKeyword,
+      wecomWebhook: notifyAnswers.wecomWebhook || currentConfig.wecomWebhook,
+      wecomKeyword: notifyAnswers.wecomKeyword || currentConfig.wecomKeyword
     };
   }
 
@@ -302,8 +326,11 @@ async function runChat(queryParts: string[], options: any) {
   if (process.env.SMTP_PASS) fullConfig.smtpPass = process.env.SMTP_PASS;
   if (process.env.TAVILY_API_KEY) fullConfig.tavilyApiKey = process.env.TAVILY_API_KEY;
   if (process.env.FEISHU_WEBHOOK) fullConfig.feishuWebhook = process.env.FEISHU_WEBHOOK;
+  if (process.env.FEISHU_KEYWORD) fullConfig.feishuKeyword = process.env.FEISHU_KEYWORD;
   if (process.env.DINGTALK_WEBHOOK) fullConfig.dingtalkWebhook = process.env.DINGTALK_WEBHOOK;
+  if (process.env.DINGTALK_KEYWORD) fullConfig.dingtalkKeyword = process.env.DINGTALK_KEYWORD;
   if (process.env.WECOM_WEBHOOK) fullConfig.wecomWebhook = process.env.WECOM_WEBHOOK;
+  if (process.env.WECOM_KEYWORD) fullConfig.wecomKeyword = process.env.WECOM_KEYWORD;
 
   if (!apiKey) {
     console.log(chalk.yellow("API Key not found."));

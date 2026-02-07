@@ -38,6 +38,14 @@
   ],
   "author": "AutoClaw Contributor",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tsingliuwin/autoclaw.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tsingliuwin/autoclaw/issues"
+  },
+  "homepage": "https://github.com/tsingliuwin/autoclaw#readme",
   "description": "A lightweight AI agent CLI tool that brings the power of LLMs to your terminal.",
   "dependencies": {
     "@mozilla/readability": "^0.6.0",

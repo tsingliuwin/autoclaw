@@ -2,12 +2,19 @@
 
 [![NPM Version](https://img.shields.io/npm/v/autoclaw.svg?style=flat-square)](https://www.npmjs.com/package/autoclaw)
 [![NPM Downloads](https://img.shields.io/npm/dm/autoclaw.svg?style=flat-square)](https://www.npmjs.com/package/autoclaw)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github&style=flat-square)](https://github.com/tsingliuwin/autoclaw)
 [![License](https://img.shields.io/npm/l/autoclaw.svg?style=flat-square)](https://github.com/tsingliuwin/autoclaw/blob/main/LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
 
 **The Docker-Native Headless Agent for Massive Scale Automation.**
 
 AutoClaw is a hyper-lightweight AI agent designed to live inside **Docker containers**. Unlike heavy, GUI-dependent agents, AutoClaw is built for **headless, massive-scale concurrency**.
+
+---
+
+🔗 **GitHub Repository**: [https://github.com/tsingliuwin/autoclaw](https://github.com/tsingliuwin/autoclaw)
+
+---
 
 You can run one instance to fix a local script, or orchestrate **10,000+ instances** in a Kubernetes cluster to refactor codebases, audit servers, or process data streams in parallel.
 

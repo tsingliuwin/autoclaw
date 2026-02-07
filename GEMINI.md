@@ -4,6 +4,8 @@
 **AutoClaw** is a hyper-lightweight AI agent designed for **massive scale automation** in **headless/containerized environments**.
 It serves as the ideal "runtime" for executing LLM-driven tasks within Docker containers, allowing users to orchestrate thousands of agents simultaneously for complex parallel workflows.
 
+**GitHub**: [https://github.com/tsingliuwin/autoclaw](https://github.com/tsingliuwin/autoclaw)
+
 ## Core Philosophy
 - **Docker First**: Designed to run inside isolated containers (Alpine/Debian).
 - **Massive Scalability**: Low resource footprint enables high-concurrency swarms.

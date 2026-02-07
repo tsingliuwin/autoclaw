@@ -40,6 +40,43 @@ const checkLinuxFonts = () => {
   }
 };
 
+const installFonts = (missing: { cjk: boolean, emoji: boolean }) => {
+    const child_process = require('child_process');
+    try {
+        let installCmd = '';
+        if (fs.existsSync('/etc/alpine-release')) {
+            // Alpine
+            const pkgs = [];
+            if (!missing.cjk) pkgs.push('font-noto-cjk');
+            if (!missing.emoji) pkgs.push('font-noto-emoji');
+            if (pkgs.length > 0) {
+                installCmd = `apk add --no-cache ${pkgs.join(' ')}`;
+            }
+        } else if (fs.existsSync('/etc/debian_version')) {
+            // Debian/Ubuntu
+            const pkgs = [];
+            if (!missing.cjk) pkgs.push('fonts-noto-cjk', 'fonts-wqy-zenhei');
+            if (!missing.emoji) pkgs.push('fonts-noto-color-emoji');
+            if (pkgs.length > 0) {
+                // apt-get update is often needed first in clean containers
+                installCmd = `apt-get update && apt-get install -y ${pkgs.join(' ')}`;
+            }
+        }
+
+        if (installCmd) {
+            console.log(`Creating font environment... (${installCmd})`);
+            console.log("This may take a few moments...");
+            child_process.execSync(installCmd, { stdio: 'inherit' });
+            console.log('✅ Fonts installed successfully.');
+            return true;
+        }
+    } catch (e: any) {
+        console.warn(`⚠️ Failed to auto-install fonts: ${e.message}`);
+        console.warn('Please install them manually to fix "tofu" characters.');
+    }
+    return false;
+};
+
 export const ScreenshotTool: ToolModule = {
   name: "Screenshot Tool",
   configKeys: [],
@@ -72,13 +109,9 @@ export const ScreenshotTool: ToolModule = {
       // Check for fonts on Linux to prevent "tofu" characters
       if (os.platform() === 'linux') {
           const fonts = checkLinuxFonts();
-          if (!fonts.cjk) {
-            console.warn("⚠️  Warning: No CJK fonts detected. Chinese characters may appear as squares (tofu).");
-            console.warn("   Run 'apk add font-noto-cjk' (Alpine) or 'apt-get install fonts-noto-cjk' (Debian/Ubuntu).");
-          }
-          if (!fonts.emoji) {
-            console.warn("⚠️  Warning: No Emoji fonts detected. Emojis may appear as squares.");
-            console.warn("   Run 'apk add font-noto-emoji' (Alpine) or 'apt-get install fonts-noto-color-emoji' (Debian/Ubuntu).");
+          if (!fonts.cjk || !fonts.emoji) {
+             console.log("Missing fonts detected. Attempting to fix environment...");
+             installFonts(fonts);
           }
       }
 

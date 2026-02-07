@@ -25,7 +25,16 @@
     "agent",
     "automation",
     "openai",
-    "tool"
+    "tool",
+    "docker",
+    "headless",
+    "devops",
+    "llm",
+    "gpt-4",
+    "typescript",
+    "orchestration",
+    "infrastructure",
+    "terminal"
   ],
   "author": "AutoClaw Contributor",
   "license": "MIT",

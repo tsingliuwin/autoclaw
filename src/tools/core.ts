@@ -117,7 +117,8 @@ export const DateTimeTool: ToolModule = {
       description: "Get the current system date and time. Use this when the user refers to relative dates (like 'today', 'next week', 'this March') to ensure accuracy.",
       parameters: {
         type: "object",
-        properties: {}
+        properties: {},
+        required: []
       }
     }
   },

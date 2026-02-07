@@ -8,13 +8,18 @@ export const EmailTool: ToolModule = {
     type: "function",
     function: {
       name: "send_email",
-      description: "Send an email using configured SMTP settings.",
+      description: "Send an email using configured SMTP settings. Can include optional file attachments.",
       parameters: {
         type: "object",
         properties: {
           to: { type: "string", description: "Recipient email address." },
           subject: { type: "string", description: "Email subject." },
-          body: { type: "string", description: "Email body content (text)." }
+          body: { type: "string", description: "Email body content (text)." },
+          attachments: { 
+            type: "array", 
+            items: { type: "string" },
+            description: "Optional list of local file paths to attach to the email."
+          }
         },
         required: ["to", "subject", "body"]
       }
@@ -37,11 +42,16 @@ export const EmailTool: ToolModule = {
         },
       });
 
+      const emailAttachments = args.attachments?.map((filePath: string) => ({
+        path: filePath
+      })) || [];
+
       const info = await transporter.sendMail({
         from: config.smtpFrom || config.smtpUser, // sender address
         to: args.to, // list of receivers
         subject: args.subject, // Subject line
         text: args.body, // plain text body
+        attachments: emailAttachments
       });
 
       return `Email sent successfully. Message ID: ${info.messageId}`;

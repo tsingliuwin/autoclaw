@@ -4,6 +4,7 @@ import { EmailTool } from './email.js';
 import { SearchTool } from './search.js';
 import { NotifyTool } from './notify.js';
 import { BrowserTool } from './browser.js';
+import { ScreenshotTool } from './screenshot.js';
 
 // Central Registry of all available tools
 export const toolRegistry: ToolModule[] = [
@@ -14,7 +15,8 @@ export const toolRegistry: ToolModule[] = [
   EmailTool,
   SearchTool,
   NotifyTool,
-  BrowserTool
+  BrowserTool,
+  ScreenshotTool
 ];
 
 export function getToolDefinitions() {

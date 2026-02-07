@@ -32,7 +32,11 @@ export const ScreenshotTool: ToolModule = {
   handler: async (args: any, config: any) => {
     let browser;
     try {
-      browser = await chromium.launch({ headless: true });
+      // Launch with specific args to improve font rendering
+      browser = await chromium.launch({ 
+        headless: true,
+        args: ['--font-render-hinting=none'] 
+      });
     } catch (error: any) {
       if (error.message.includes("Executable doesn't exist")) {
         return "Error: Playwright browsers are not installed. Please run `npx playwright install chromium` to enable this feature.";
@@ -41,8 +45,10 @@ export const ScreenshotTool: ToolModule = {
     }
 
     const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      viewport: { width: 1280, height: 720 }
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      viewport: { width: 1280, height: 720 },
+      locale: 'zh-CN', // Set locale to Chinese to help with font selection and site localization
+      deviceScaleFactor: 2 // High DPI for better text clarity
     });
     const page = await context.newPage();
 
@@ -50,7 +56,10 @@ export const ScreenshotTool: ToolModule = {
       console.log(`Navigating to ${args.url} for screenshot...`);
       await page.goto(args.url, { waitUntil: 'networkidle', timeout: 30000 });
       
-      // Wait a bit for animations etc.
+      // Wait for fonts to be ready
+      await page.evaluate(() => document.fonts.ready);
+      
+      // Additional small delay for dynamic content
       await page.waitForTimeout(1000);
 
       await page.screenshot({ 

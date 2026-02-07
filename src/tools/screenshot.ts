@@ -29,50 +29,69 @@ export const ScreenshotTool: ToolModule = {
       }
     }
   },
-  handler: async (args: any, config: any) => {
-    let browser;
-    try {
-      // Launch with specific args to improve font rendering
-      browser = await chromium.launch({ 
-        headless: true,
-        args: ['--font-render-hinting=none'] 
-      });
-    } catch (error: any) {
-      if (error.message.includes("Executable doesn't exist")) {
-        return "Error: Playwright browsers are not installed. Please run `npx playwright install chromium` to enable this feature.";
+    handler: async (args: any, config: any) => {
+      let browser;
+      const launchOptions: any = { 
+          headless: true,
+          args: ['--font-render-hinting=none'] 
+      };
+  
+      try {
+        // Try to launch system Chrome first as it usually has better font support
+        browser = await chromium.launch({ ...launchOptions, channel: 'chrome' });
+      } catch (e) {
+        // Fallback to bundled Chromium
+        try {
+          browser = await chromium.launch(launchOptions);
+        } catch (error: any) {
+          if (error.message.includes("Executable doesn't exist")) {
+            return "Error: Playwright browsers are not installed. Please run `npx playwright install chromium` to enable this feature.";
+          }
+          return `Error launching browser: ${error.message}`;
+        }
       }
-      return `Error launching browser: ${error.message}`;
-    }
-
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      viewport: { width: 1280, height: 720 },
-      locale: 'zh-CN', // Set locale to Chinese to help with font selection and site localization
-      deviceScaleFactor: 2 // High DPI for better text clarity
-    });
-    const page = await context.newPage();
-
-    try {
-      console.log(`Navigating to ${args.url} for screenshot...`);
-      await page.goto(args.url, { waitUntil: 'networkidle', timeout: 30000 });
-      
-      // Wait for fonts to be ready
-      await page.evaluate(() => document.fonts.ready);
-      
-      // Additional small delay for dynamic content
-      await page.waitForTimeout(1000);
-
-      await page.screenshot({ 
-        path: args.outputPath, 
-        fullPage: args.fullPage || false 
+  
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        viewport: { width: 1280, height: 720 },
+        locale: 'zh-CN', // Set locale to Chinese
+        deviceScaleFactor: 2 // High DPI
       });
-
-      return `Successfully captured screenshot of ${args.url} and saved to ${args.outputPath}`;
-
-    } catch (error: any) {
-      return `Error taking screenshot: ${error.message}`;
-    } finally {
-      await browser.close();
+      const page = await context.newPage();
+  
+      try {
+        console.log(`Navigating to ${args.url} for screenshot...`);
+        await page.goto(args.url, { waitUntil: 'networkidle', timeout: 30000 });
+        
+        // Inject CSS to force common Chinese fonts
+        await page.addStyleTag({
+          content: `
+            body, h1, h2, h3, h4, h5, h6, p, span, div, li, a, button, input, textarea {
+              font-family: "PingFang SC", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif !important;
+            }
+          `
+        });
+  
+        // Wait for fonts to be ready
+        await page.evaluate(() => document.fonts.ready);
+        
+        // Additional small delay for dynamic content and font rendering
+        await page.waitForTimeout(1000);
+  
+        await page.screenshot({ 
+          path: args.outputPath, 
+          fullPage: args.fullPage || false 
+        });
+  
+        return `Successfully captured screenshot of ${args.url} and saved to ${args.outputPath}`;
+  
+      } catch (error: any) {
+        return `Error taking screenshot: ${error.message}`;
+      } finally {
+        if (browser) {
+          await browser.close();
+        }
+      }
     }
-  }
-};
+  };
+  

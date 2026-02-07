@@ -8,6 +8,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
+import { createInterface } from 'node:readline/promises';
+import { stdin as input, stdout as output } from 'node:process';
 
 // Handle Ctrl+C gracefully
 function handleExit() {
@@ -382,15 +384,11 @@ async function runChat(queryParts: string[], options: any) {
   }
 
   // Main chat loop
+  const rl = createInterface({ input, output });
+
   try {
     while (true) {
-      const { userInput } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'userInput',
-          message: 'You >'
-        }
-      ]);
+      const userInput = await rl.question(chalk.green('? ') + 'You > ');
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log(chalk.cyan("Goodbye!"));
@@ -402,12 +400,9 @@ async function runChat(queryParts: string[], options: any) {
       await agent.chat(userInput);
     }
   } catch (err: any) {
-    // Check for Inquirer interruption error (Ctrl+C often causes this)
-    if (err.message && (err.message.includes('User force closed') || err.message.includes('Prompt was canceled'))) {
-       console.log(chalk.cyan("\nGoodbye!"));
-       process.exit(0);
-    }
-    throw err; // Re-throw real errors to be caught by main().catch
+    console.error(chalk.red("Error in chat loop:"), err);
+  } finally {
+    rl.close();
   }
 }
 

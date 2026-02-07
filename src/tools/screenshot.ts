@@ -1,5 +1,22 @@
 import { chromium } from 'playwright';
 import { ToolModule } from './interface.js';
+import * as fs from 'fs';
+import * as os from 'os';
+
+// Helper to check for common CJK font paths on Linux
+const checkLinuxFonts = () => {
+  if (os.platform() !== 'linux') return true;
+  
+  const commonFontPaths = [
+    '/usr/share/fonts/noto',
+    '/usr/share/fonts/opentype/noto',
+    '/usr/share/fonts/truetype/wqy',
+    '/usr/share/fonts/cjk',
+    '/usr/share/fonts/google-noto-cjk' // Arch/Manjaro sometimes
+  ];
+
+  return commonFontPaths.some(path => fs.existsSync(path));
+};
 
 export const ScreenshotTool: ToolModule = {
   name: "Screenshot Tool",
@@ -30,6 +47,12 @@ export const ScreenshotTool: ToolModule = {
     }
   },
     handler: async (args: any, config: any) => {
+      // Check for fonts on Linux to prevent "tofu" characters
+      if (os.platform() === 'linux' && !checkLinuxFonts()) {
+        console.warn("⚠️  Warning: No CJK fonts detected. Chinese characters may appear as squares (tofu).");
+        console.warn("   Run 'apk add font-noto-cjk' (Alpine) or 'apt-get install fonts-noto-cjk' (Debian/Ubuntu).");
+      }
+
       let browser;
       const launchOptions: any = { 
           headless: true,

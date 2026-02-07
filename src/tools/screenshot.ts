@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import { ToolModule } from './interface.js';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as child_process from 'child_process';
 
 // Helper to check for common CJK and Emoji font paths on Linux
 const checkLinuxFonts = () => {
@@ -26,7 +27,6 @@ const checkLinuxFonts = () => {
 
   // Also check if fc-list finds fonts (if available) - secondary check
   try {
-      const child_process = require('child_process');
       const cjkOutput = child_process.execSync('fc-list :lang=zh', { stdio: 'pipe' }).toString();
       const emojiOutput = child_process.execSync('fc-list :family=Emoji', { stdio: 'pipe' }).toString(); // Approximate check
       
@@ -41,7 +41,6 @@ const checkLinuxFonts = () => {
 };
 
 const installFonts = (missing: { cjk: boolean, emoji: boolean }) => {
-    const child_process = require('child_process');
     try {
         let installCmd = '';
         if (fs.existsSync('/etc/alpine-release')) {

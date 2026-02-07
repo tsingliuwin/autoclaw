@@ -1,6 +1,6 @@
 {
   "name": "autoclaw",
-  "version": "1.0.26",
+  "version": "1.0.27",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

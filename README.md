@@ -23,8 +23,9 @@ You can run one instance to fix a local script, or orchestrate **10,000+ instanc
 - 📜 **Headless Execution**: No browsers, no GUIs. Pure terminal efficiency.
 - 🤖 **Non-Interactive Mode**: Intelligent flag handling (`-y`, `--no-interactive`) for zero-touch automation.
 - 📂 **Universal Control**: From simple file I/O to complex system administration.
-- 🧠 **Context Aware**: Detects container environments to optimize command strategies.
+- 🧠 **Context Aware**: Detects container environments and provides accurate system time for relative date queries.
 - 🌐 **Web Search**: Integrated with Tavily for real-time information retrieval.
+- 🕒 **Time Accuracy**: Built-in tool to get precise system date and time for correct temporal context.
 - 📧 **Communication**: Send emails and push notifications to chat groups automatically.
 
 ## Tech Stack
@@ -140,6 +141,10 @@ Configure SMTP settings to let the agent send emails.
 ### Notifications (Feishu/DingTalk/WeCom)
 Configure webhooks to receive alerts or reports in your team chat apps.
 - **Usage**: "Notify the team on Feishu that the build has finished."
+
+### Date & Time
+Built-in utility to provide the agent with the current system time, ensuring accurate handling of relative time requests.
+- **Usage**: "What's the date today?" or "Remind me to check the logs next Monday."
 
 ## License
 

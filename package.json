@@ -4,7 +4,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "autoclaw": "./dist/index.js"
+    "autoclaw": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

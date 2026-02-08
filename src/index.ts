@@ -8,8 +8,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
-import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
 
 // Handle Ctrl+C gracefully
 function handleExit() {
@@ -392,20 +390,16 @@ async function runChat(queryParts: string[], options: any) {
   }
 
   // Main chat loop
-  const rl = createInterface({ input, output });
-
   try {
     while (true) {
-      let userInput: string;
-      try {
-        userInput = await rl.question(chalk.green('? ') + 'You > ');
-      } catch (err: any) {
-        if (err.code === 'ABORT_ERR') {
-          console.log(chalk.cyan("\nGoodbye!"));
-          break;
+      const { userInput } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'userInput',
+          message: 'You >',
+          prefix: chalk.green('?')
         }
-        throw err;
-      }
+      ]);
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log(chalk.cyan("Goodbye!"));
@@ -417,14 +411,11 @@ async function runChat(queryParts: string[], options: any) {
       await agent.chat(userInput);
     }
   } catch (err: any) {
-    if (err.name === 'AbortError' || err.code === 'ABORT_ERR') {
-       // Handled inside loop mostly, but just in case
+    if (err.message && (err.message.includes('User force closed') || err.message.includes('Prompt was canceled'))) {
        console.log(chalk.cyan("\nGoodbye!"));
     } else {
        console.error(chalk.red("Error in chat loop:"), err);
     }
-  } finally {
-    rl.close();
   }
 }
 

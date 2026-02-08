@@ -86,8 +86,9 @@ program
 program
   .command('setup')
   .description('Run the interactive setup wizard to configure API keys')
-  .action(async () => {
-    await runSetup();
+  .option('-p, --project', 'Save configuration to project-level (.autoclaw/setting.json)')
+  .action(async (options) => {
+    await runSetup(options);
   });
 
 program
@@ -100,11 +101,18 @@ program
 
 program.parse(process.argv);
 
-async function runSetup() {
-  console.log(chalk.bold.cyan("AutoClaw Setup Wizard 🦞\n"));
-  console.log(chalk.dim(`Config will be saved to: ${GLOBAL_CONFIG_FILE}`));
+async function runSetup(options: any = {}) {
+  const isProject = options.project;
+  const targetFile = isProject ? LOCAL_CONFIG_FILE : GLOBAL_CONFIG_FILE;
+  const targetDir = isProject ? path.join(process.cwd(), '.autoclaw') : GLOBAL_CONFIG_DIR;
 
-  const currentConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
+  console.log(chalk.bold.cyan("AutoClaw Setup Wizard 🦞\n"));
+  console.log(chalk.dim(`Config will be saved to: ${targetFile}`));
+
+  // Load both to show current effective values as defaults
+  const globalConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
+  const localConfig = loadJsonConfig(LOCAL_CONFIG_FILE);
+  const currentConfig = { ...globalConfig, ...localConfig };
 
   function maskSecret(secret?: string): string {
     if (!secret || secret.length < 8) return '******';
@@ -282,11 +290,11 @@ async function runSetup() {
   };
 
   try {
-    if (!fs.existsSync(GLOBAL_CONFIG_DIR)) {
-      fs.mkdirSync(GLOBAL_CONFIG_DIR, { recursive: true });
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
-    fs.writeFileSync(GLOBAL_CONFIG_FILE, JSON.stringify(newConfig, null, 2), { mode: 0o600 });
-    console.log(chalk.green(`\n✅ Configuration saved to ${GLOBAL_CONFIG_FILE}`));
+    fs.writeFileSync(targetFile, JSON.stringify(newConfig, null, 2), { mode: 0o600 });
+    console.log(chalk.green(`\n✅ Configuration saved to ${targetFile}`));
     console.log(chalk.cyan("You can now run 'autoclaw' to start using the agent."));
   } catch (error: any) {
     console.error(chalk.red(`Failed to write config: ${error.message}`));

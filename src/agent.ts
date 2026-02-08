@@ -27,6 +27,7 @@ System Information:
 - Current Working Directory: ${process.cwd()}
 - User: ${os.userInfo().username}
 - Home Directory: ${os.homedir()}
+- Current Date: ${new Date().toLocaleString()}
 `;
 
     this.messages = [

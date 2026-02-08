@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ToolModule } from './interface.js';
@@ -30,8 +31,7 @@ const toolDefinition = {
         },
         model: {
           type: "string",
-          enum: ["dall-e-3", "dall-e-2"],
-          description: "The AI model to use. 'dall-e-3' for high quality (default), 'dall-e-2' for faster/smaller generation or editing.",
+          description: "The AI model to use. 'dall-e-3' for high quality (default), 'dall-e-2' for editing, or a custom model like 'doubao-seedream-4-5-251128'.",
           default: "dall-e-3"
         },
         n: {
@@ -41,7 +41,7 @@ const toolDefinition = {
         },
         size: {
           type: "string",
-          description: "Image resolution/size. DALL-E 3: '1024x1024', '1024x1792' (Portrait), '1792x1024' (Landscape). DALL-E 2: '256x256', '512x512', '1024x1024'.",
+          description: "Resolution/Aspect Ratio. YOU should infer the best size based on the prompt content.\n- DALL-E 3: '1024x1024' (Square), '1792x1024' (Landscape), '1024x1792' (Portrait).\n- Doubao/High-Res: MUST be >3.6M pixels. Use '2048x2048' (Square), '2560x1440' (Landscape), '1440x2560' (Portrait).",
           default: "1024x1024"
         },
         quality: {
@@ -94,12 +94,23 @@ const handler = async (args: any, config: any): Promise<string> => {
   } = args;
 
   const n = args.n || config.imageN || 1;
-  const size = args.size || config.imageSize || "1024x1024";
+  
+  // Model-specific default size
+  let mode = args.mode;
+  let model = args.model;
+  if (config.imageModel && (!model || model === 'dall-e-3')) {
+    model = config.imageModel;
+  }
+  model = model || "dall-e-3";
+
+  let defaultSize = "1024x1024";
+  if (model.toLowerCase().includes("doubao")) {
+    defaultSize = "2048x2048";
+  }
+  
+  const size = args.size || config.imageSize || defaultSize;
   const quality = args.quality || config.imageQuality || "standard";
   const style = args.style || config.imageStyle || "vivid";
-
-  let mode = args.mode;
-  let model = args.model || config.imageModel || "dall-e-3";
 
   // Infer mode if not provided
   if (!mode) {
@@ -167,9 +178,9 @@ const handler = async (args: any, config: any): Promise<string> => {
           }
         }
       } else {
-        // DALL-E 2
+        // DALL-E 2 or Custom Model
         const response = await client.images.generate({
-          model: "dall-e-2",
+          model: model,
           prompt: prompt,
           n: n,
           size: size as any,
@@ -252,6 +263,10 @@ const handler = async (args: any, config: any): Promise<string> => {
     return `Successfully generated ${generatedFiles.length} image(s):\n${generatedFiles.join('\n')}`;
 
   } catch (error: any) {
+    console.error(chalk.red(`Image Generation Failed: ${error.message}`));
+    if (error.response && error.response.data) {
+       console.error(chalk.dim(JSON.stringify(error.response.data)));
+    }
     return `Error generating image: ${error.message}`;
   }
 };

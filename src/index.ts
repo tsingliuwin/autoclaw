@@ -7,6 +7,7 @@ import { Agent } from './agent.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'node:readline/promises';
 import { fileURLToPath } from 'url';
 
 // Handle Ctrl+C gracefully
@@ -439,16 +440,15 @@ async function runChat(queryParts: string[], options: any) {
   }
 
   // Main chat loop
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true
+  });
+
   try {
     while (true) {
-      const { userInput } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'userInput',
-          message: 'You >',
-          prefix: chalk.green('?')
-        }
-      ]);
+      const userInput = await rl.question(chalk.green('?') + ' You > ');
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log(chalk.cyan("Goodbye!"));
@@ -457,7 +457,12 @@ async function runChat(queryParts: string[], options: any) {
 
       if (userInput.trim() === '') continue;
 
-      await agent.chat(userInput);
+      rl.pause();
+      try {
+        await agent.chat(userInput);
+      } finally {
+        rl.resume();
+      }
     }
   } catch (err: any) {
     if (err.message && (err.message.includes('User force closed') || err.message.includes('Prompt was canceled'))) {
@@ -465,6 +470,8 @@ async function runChat(queryParts: string[], options: any) {
     } else {
        console.error(chalk.red("Error in chat loop:"), err);
     }
+  } finally {
+    rl.close();
   }
 }
 

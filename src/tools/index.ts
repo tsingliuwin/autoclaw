@@ -6,6 +6,7 @@ import { NotifyTool } from './notify.js';
 import { BrowserTool } from './browser.js';
 import { ScreenshotTool } from './screenshot.js';
 import { ImageTool } from './image.js';
+import { PromptOptimizerTool } from './prompt-optimizer.js';
 
 // Central Registry of all available tools
 export const toolRegistry: ToolModule[] = [
@@ -13,6 +14,7 @@ export const toolRegistry: ToolModule[] = [
   ReadFileTool,
   WriteFileTool,
   DateTimeTool,
+  PromptOptimizerTool,
   EmailTool,
   SearchTool,
   NotifyTool,

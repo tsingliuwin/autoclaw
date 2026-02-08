@@ -90,12 +90,13 @@ const handler = async (args: any, config: any): Promise<string> => {
     prompt,
     image_path,
     mask_path,
-    n = 1,
-    size = "1024x1024",
-    quality = "standard",
-    style = "vivid",
     output_dir = "."
   } = args;
+
+  const n = args.n || config.imageN || 1;
+  const size = args.size || config.imageSize || "1024x1024";
+  const quality = args.quality || config.imageQuality || "standard";
+  const style = args.style || config.imageStyle || "vivid";
 
   let mode = args.mode;
   let model = args.model || config.imageModel || "dall-e-3";

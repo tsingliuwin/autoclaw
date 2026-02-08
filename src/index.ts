@@ -39,6 +39,10 @@ interface AppConfig {
   imageApiKey?: string;
   imageBaseUrl?: string;
   imageModel?: string;
+  imageSize?: string;
+  imageQuality?: string;
+  imageStyle?: string;
+  imageN?: number;
   autoConfirm?: boolean;
   feishuWebhook?: string;
   feishuKeyword?: string;

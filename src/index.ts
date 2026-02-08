@@ -36,6 +36,9 @@ interface AppConfig {
   smtpPass?: string;
   smtpFrom?: string;
   tavilyApiKey?: string;
+  imageApiKey?: string;
+  imageBaseUrl?: string;
+  imageModel?: string;
   autoConfirm?: boolean;
   feishuWebhook?: string;
   feishuKeyword?: string;
@@ -145,6 +148,12 @@ async function runSetup(options: any = {}) {
     },
     {
       type: 'confirm',
+      name: 'configureImage',
+      message: 'Do you want to configure a separate Image Generation Service (DALL-E)?',
+      default: !!currentConfig.imageApiKey
+    },
+    {
+      type: 'confirm',
       name: 'configureEmail',
       message: 'Do you want to configure the Email Tool (SMTP)?',
       default: !!currentConfig.smtpHost
@@ -165,6 +174,37 @@ async function runSetup(options: any = {}) {
 
   // Resolve sensitive values (Keep old if empty)
   const finalApiKey = answers.apiKey || currentConfig.apiKey;
+
+  let imageConfig: any = {};
+  if (answers.configureImage) {
+    const imageAnswers = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'imageApiKey',
+        message: currentConfig.imageApiKey
+          ? `Enter Image Service API Key (Leave empty to keep ${maskSecret(currentConfig.imageApiKey)}, or leave empty to use main API key):`
+          : 'Enter Image Service API Key (Leave empty to use main API key):',
+        mask: '*'
+      },
+      {
+        type: 'input',
+        name: 'imageBaseUrl',
+        message: 'Enter Image Service Base URL:',
+        default: currentConfig.imageBaseUrl || currentConfig.baseUrl || 'https://api.openai.com/v1'
+      },
+      {
+        type: 'input',
+        name: 'imageModel',
+        message: 'Default Image Model:',
+        default: currentConfig.imageModel || 'dall-e-3'
+      }
+    ]);
+    imageConfig = {
+      imageApiKey: imageAnswers.imageApiKey || currentConfig.imageApiKey,
+      imageBaseUrl: imageAnswers.imageBaseUrl,
+      imageModel: imageAnswers.imageModel
+    };
+  }
 
   let emailConfig: any = {};
   if (answers.configureEmail) {
@@ -282,6 +322,7 @@ async function runSetup(options: any = {}) {
     apiKey: finalApiKey,
     baseUrl: answers.baseUrl,
     model: answers.model,
+    ...imageConfig,
     ...emailConfig,
     ...searchConfig,
     ...notifyConfig

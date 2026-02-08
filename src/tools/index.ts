@@ -5,6 +5,7 @@ import { SearchTool } from './search.js';
 import { NotifyTool } from './notify.js';
 import { BrowserTool } from './browser.js';
 import { ScreenshotTool } from './screenshot.js';
+import { ImageTool } from './image.js';
 
 // Central Registry of all available tools
 export const toolRegistry: ToolModule[] = [
@@ -16,7 +17,8 @@ export const toolRegistry: ToolModule[] = [
   SearchTool,
   NotifyTool,
   BrowserTool,
-  ScreenshotTool
+  ScreenshotTool,
+  ImageTool
 ];
 
 export function getToolDefinitions() {

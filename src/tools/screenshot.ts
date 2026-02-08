@@ -98,6 +98,10 @@ export const ScreenshotTool: ToolModule = {
           fullPage: {
             type: "boolean",
             description: "If true (default), takes a screenshot of the full scrollable page. Set to false for viewport only."
+          },
+          waitTime: {
+            type: "number",
+            description: "Optional delay in seconds to wait for page resources to load before capturing (default: 1)."
           }
         },
         required: ["url", "outputPath"]
@@ -162,8 +166,12 @@ export const ScreenshotTool: ToolModule = {
         // Wait for fonts to be ready
         await page.evaluate(() => document.fonts.ready);
         
-        // Additional small delay for dynamic content and font rendering
-        await page.waitForTimeout(1000);
+        // Additional delay for dynamic content (user specified or default 1s)
+        const waitTimeMs = (args.waitTime || 1) * 1000;
+        if (waitTimeMs > 0) {
+            console.log(`Waiting for ${waitTimeMs}ms...`);
+            await page.waitForTimeout(waitTimeMs);
+        }
   
         await page.screenshot({ 
           path: args.outputPath, 

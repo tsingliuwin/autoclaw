@@ -113,7 +113,11 @@ async function runSetup(options: any = {}) {
   // Load both to show current effective values as defaults
   const globalConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
   const localConfig = loadJsonConfig(LOCAL_CONFIG_FILE);
-  const currentConfig = { ...globalConfig, ...localConfig };
+  // If setting up Global (default), prioritize Global values for display, falling back to Local.
+  // If setting up Project, prioritize Project values (standard effective config).
+  const currentConfig = isProject 
+    ? { ...globalConfig, ...localConfig }
+    : { ...localConfig, ...globalConfig };
 
   function maskSecret(secret?: string): string {
     if (!secret || secret.length < 8) return '******';

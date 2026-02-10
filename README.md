@@ -31,11 +31,6 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 ## Features
 
 - 📜 **Headless Execution**: No browsers, no GUIs. Pure terminal efficiency.
-<<<<<<< HEAD
-- 🤖 **Non-Interactive**: Intelligent flag handling (`-y`) for zero-touch automation.
-- 📂 **Universal Control**: From simple file I/O to complex system administration and code refactoring.
-- 🧠 **Context Aware**: Detects OS and container environments to optimize command strategies.
-=======
 - 🤖 **Non-Interactive Mode**: Intelligent flag handling (`-y`, `--no-interactive`) for zero-touch automation.
 - 📂 **Universal Control**: From simple file I/O to complex system administration.
 - 🧠 **Context Aware**: Detects container environments and provides accurate system time for relative date queries.
@@ -49,7 +44,6 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - **Framework**: Commander.js
 - **UI**: Inquirer (interactivity), Chalk (styling), Ora (spinners)
 - **AI**: OpenAI SDK (Compatible with DeepSeek, LocalLLM, etc.)
->>>>>>> a5a91c879217b2677060b6f52805c3f99ffe732d
 
 ## Installation
 
@@ -181,9 +175,6 @@ apk add font-noto-cjk font-noto-emoji
 
 ## License
 
-<<<<<<< HEAD
-MIT
-=======
 MIT
 
 ## Contributing
@@ -198,4 +189,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 GitHub: [https://github.com/tsingliuwin/autoclaw](https://github.com/tsingliuwin/autoclaw)
->>>>>>> a5a91c879217b2677060b6f52805c3f99ffe732d

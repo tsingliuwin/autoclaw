@@ -1,8 +1,20 @@
 # AutoClaw 🦞
 
+[![NPM Version](https://img.shields.io/npm/v/autoclaw.svg?style=flat-square)](https://www.npmjs.com/package/autoclaw)
+[![NPM Downloads](https://img.shields.io/npm/dm/autoclaw.svg?style=flat-square)](https://www.npmjs.com/package/autoclaw)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github&style=flat-square)](https://github.com/tsingliuwin/autoclaw)
+[![License](https://img.shields.io/npm/l/autoclaw.svg?style=flat-square)](https://github.com/tsingliuwin/autoclaw/blob/main/LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)
+
 **The Engineering-First Headless Agent Framework: Stable, Scalable Automation for the Post-Vision Era.**
 
 English | [简体中文](./README.zh-CN.md)
+
+---
+
+🔗 **GitHub Repository**: [https://github.com/tsingliuwin/autoclaw](https://github.com/tsingliuwin/autoclaw)
+
+---
 
 AutoClaw is a high-stability, open-source automation framework specifically engineered for **headless systems**.
 
@@ -14,44 +26,94 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - 🛡️ **Superior Stability**: Immune to issues like UI rendering, screen resolution, or network lag that plague vision-based agents.
 - 📈 **Massive Scalability**: Low resource consumption allows orchestrating thousands of instances (e.g., in K8s) for true automation swarms.
 - 🔌 **Swarm Ready**: Stateless design allows for easy orchestration via K8s, Docker Swarm, or simple shell loops.
+- 🧩 **Extensible Integrations**: Built-in support for Web Search (Tavily), Email (SMTP), and Notification Webhooks (Feishu, DingTalk, WeCom).
 
 ## Features
 
 - 📜 **Headless Execution**: No browsers, no GUIs. Pure terminal efficiency.
+<<<<<<< HEAD
 - 🤖 **Non-Interactive**: Intelligent flag handling (`-y`) for zero-touch automation.
 - 📂 **Universal Control**: From simple file I/O to complex system administration and code refactoring.
 - 🧠 **Context Aware**: Detects OS and container environments to optimize command strategies.
+=======
+- 🤖 **Non-Interactive Mode**: Intelligent flag handling (`-y`, `--no-interactive`) for zero-touch automation.
+- 📂 **Universal Control**: From simple file I/O to complex system administration.
+- 🧠 **Context Aware**: Detects container environments and provides accurate system time for relative date queries.
+- 🌐 **Web Search**: Integrated with Tavily for real-time information retrieval.
+- 🕒 **Time Accuracy**: Built-in tool to get precise system date and time for correct temporal context.
+- 📧 **Communication**: Send emails and push notifications to chat groups automatically.
+
+## Tech Stack
+- **Runtime**: Node.js
+- **Language**: TypeScript
+- **Framework**: Commander.js
+- **UI**: Inquirer (interactivity), Chalk (styling), Ora (spinners)
+- **AI**: OpenAI SDK (Compatible with DeepSeek, LocalLLM, etc.)
+>>>>>>> a5a91c879217b2677060b6f52805c3f99ffe732d
 
 ## Installation
 
+### User Installation
+Install globally via npm:
 ```bash
 npm install -g autoclaw
 ```
 
-## Updating
-
-To update AutoClaw to the latest version:
-
-```bash
-npm update -g autoclaw
-```
+### Development Installation
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/tsingliuwin/autoclaw.git
+    cd autoclaw
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Build the project:
+    ```bash
+    npm run build
+    ```
+4.  Link globally (optional):
+    ```bash
+    npm link
+    ```
 
 ## Quick Start
 
-1.  **Setup**: Run the setup wizard to configure your API key.
+1.  **Setup**: Run the interactive setup wizard to configure your API keys and integrations.
     ```bash
     autoclaw setup
     ```
-2.  **Run**: Start the agent.
+2.  **Run**: Start the agent in interactive mode.
     ```bash
     autoclaw
     ```
 
-## Usage Examples
+## Usage
 
-- "List all TypeScript files in the src folder."
-- "Create a new React component named Button in `components/Button.tsx`."
-- "Check my disk usage and tell me which folder is the largest."
+### Interactive Mode
+Simply run `autoclaw` to enter the chat loop.
+```bash
+autoclaw
+> List all TypeScript files in the src folder.
+```
+
+### Headless Mode (One-Shot)
+Run a single command and exit.
+```bash
+autoclaw "Check disk usage and save the report to usage.txt" --no-interactive
+```
+
+### Auto-Confirm (CI/CD)
+Automatically approve all tool executions (dangerous, use with caution or in sandboxes).
+```bash
+autoclaw "Refactor src/index.ts to use ES modules" -y
+```
+
+### CLI Options
+- `-m, --model <model>`: Specify the LLM model (default: `gpt-4o`).
+- `-n, --no-interactive`: Exit after processing the initial query (Headless mode).
+- `-y, --yes`: Auto-confirm all tool executions (e.g., shell commands).
 
 ## Configuration
 
@@ -64,21 +126,76 @@ AutoClaw uses a hierarchical configuration system.
 4.  **Global Config**: (`~/.autoclaw/setting.json`)
 
 ### Supported Configuration Keys (JSON)
-- `apiKey`: Your API Key.
-- `baseUrl`: Custom Base URL.
+- `apiKey`: Your OpenAI API Key.
+- `baseUrl`: Custom Base URL (e.g., for DeepSeek or LocalLLM).
 - `model`: Default model to use.
+- `tavilyApiKey`: API Key for Tavily Web Search.
+- `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
+- `feishuWebhook`, `dingtalkWebhook`, `wecomWebhook`: Notification webhooks.
 
-### Project-Level Config (Example)
+### Project-Level Config Example
 Create a file at `.autoclaw/setting.json`:
 ```json
 {
   "model": "gpt-3.5-turbo",
-  "baseUrl": "https://api.example.com/v1"
+  "baseUrl": "https://api.deepseek.com/v1"
 }
 ```
 
-> **⚠️ Security Warning**: If you store your `apiKey` in `.autoclaw/setting.json`, make sure to add `.autoclaw/` to your `.gitignore` file to prevent leaking secrets!
+> **⚠️ Security Warning**: If you store your `apiKey` or secrets in `.autoclaw/setting.json`, make sure to add `.autoclaw/` to your `.gitignore` file to prevent leaking secrets!
+
+## Integrations
+
+### Web Search (Tavily)
+AutoClaw can search the web if you provide a Tavily API Key during setup or in config.
+- **Usage**: "Search for the latest Node.js release notes."
+
+### Email (SMTP)
+Configure SMTP settings to let the agent send emails.
+- **Usage**: "Send an email to user@example.com with the summary of the log file."
+
+### Notifications (Feishu/DingTalk/WeCom)
+Configure webhooks to receive alerts or reports in your team chat apps.
+- **Usage**: "Notify the team on Feishu that the build has finished."
+
+### Date & Time
+Built-in utility to provide the agent with the current system time, ensuring accurate handling of relative time requests.
+- **Usage**: "What's the date today?" or "Remind me to check the logs next Monday."
+
+## Docker Support
+
+### Chinese Font Issues in Screenshots
+When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts. Emojis (e.g., 🔥) may also appear as squares.
+
+**Solution:** Install CJK (Chinese/Japanese/Korean) and Emoji fonts in your container.
+
+**For Debian/Ubuntu:**
+```bash
+apt-get update && apt-get install -y fonts-noto-cjk fonts-wqy-zenhei fonts-noto-color-emoji
+```
+
+**For Alpine Linux:**
+```bash
+apk add font-noto-cjk font-noto-emoji
+```
 
 ## License
 
+<<<<<<< HEAD
 MIT
+=======
+MIT
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+---
+GitHub: [https://github.com/tsingliuwin/autoclaw](https://github.com/tsingliuwin/autoclaw)
+>>>>>>> a5a91c879217b2677060b6f52805c3f99ffe732d

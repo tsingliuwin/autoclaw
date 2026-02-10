@@ -2,7 +2,11 @@ import { ToolModule } from './interface.js';
 
 export const NotifyTool: ToolModule = {
   name: "Group Bot Notification",
-  configKeys: ["feishuWebhook", "dingtalkWebhook", "wecomWebhook"],
+  configKeys: [
+    "feishuWebhook", "feishuKeyword", 
+    "dingtalkWebhook", "dingtalkKeyword", 
+    "wecomWebhook", "wecomKeyword"
+  ],
   definition: {
     type: "function",
     function: {
@@ -26,14 +30,23 @@ export const NotifyTool: ToolModule = {
     }
   },
   handler: async (args: any, config: any) => {
-    const { platform, content } = args;
+    let { platform, content } = args;
     let webhookUrl = '';
     let payload = {};
+
+    // Helper to ensure security keyword is present
+    const ensureKeyword = (envKey: string, configKey: string) => {
+      const keyword = config[configKey] || process.env[envKey];
+      if (keyword && !content.includes(keyword)) {
+        content = `[${keyword}] ${content}`;
+      }
+    };
 
     // 1. Determine Webhook URL and Payload Format
     switch (platform) {
       case 'feishu':
         webhookUrl = config.feishuWebhook || process.env.FEISHU_WEBHOOK;
+        ensureKeyword('FEISHU_KEYWORD', 'feishuKeyword');
         if (!webhookUrl) return "Error: Feishu Webhook URL is not configured.";
         payload = {
           msg_type: "text",
@@ -43,6 +56,7 @@ export const NotifyTool: ToolModule = {
 
       case 'dingtalk':
         webhookUrl = config.dingtalkWebhook || process.env.DINGTALK_WEBHOOK;
+        ensureKeyword('DINGTALK_KEYWORD', 'dingtalkKeyword');
         if (!webhookUrl) return "Error: DingTalk Webhook URL is not configured.";
         payload = {
           msgtype: "text",
@@ -52,6 +66,7 @@ export const NotifyTool: ToolModule = {
 
       case 'wecom':
         webhookUrl = config.wecomWebhook || process.env.WECOM_WEBHOOK;
+        ensureKeyword('WECOM_KEYWORD', 'wecomKeyword');
         if (!webhookUrl) return "Error: WeCom Webhook URL is not configured.";
         payload = {
           msgtype: "text",

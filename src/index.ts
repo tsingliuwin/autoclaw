@@ -7,6 +7,7 @@ import { Agent } from './agent.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as readline from 'node:readline/promises';
 import { fileURLToPath } from 'url';
 
 // Handle Ctrl+C gracefully
@@ -36,10 +37,20 @@ interface AppConfig {
   smtpPass?: string;
   smtpFrom?: string;
   tavilyApiKey?: string;
+  imageApiKey?: string;
+  imageBaseUrl?: string;
+  imageModel?: string;
+  imageSize?: string;
+  imageQuality?: string;
+  imageStyle?: string;
+  imageN?: number;
   autoConfirm?: boolean;
   feishuWebhook?: string;
+  feishuKeyword?: string;
   dingtalkWebhook?: string;
+  dingtalkKeyword?: string;
   wecomWebhook?: string;
+  wecomKeyword?: string;
 }
 
 function loadJsonConfig(filePath: string): AppConfig {
@@ -81,8 +92,9 @@ program
 program
   .command('setup')
   .description('Run the interactive setup wizard to configure API keys')
-  .action(async () => {
-    await runSetup();
+  .option('-p, --project', 'Save configuration to project-level (.autoclaw/setting.json)')
+  .action(async (options) => {
+    await runSetup(options);
   });
 
 program
@@ -95,11 +107,22 @@ program
 
 program.parse(process.argv);
 
-async function runSetup() {
-  console.log(chalk.bold.cyan("AutoClaw Setup Wizard 🦞\n"));
-  console.log(chalk.dim(`Config will be saved to: ${GLOBAL_CONFIG_FILE}`));
+async function runSetup(options: any = {}) {
+  const isProject = options.project;
+  const targetFile = isProject ? LOCAL_CONFIG_FILE : GLOBAL_CONFIG_FILE;
+  const targetDir = isProject ? path.join(process.cwd(), '.autoclaw') : GLOBAL_CONFIG_DIR;
 
-  const currentConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
+  console.log(chalk.bold.cyan("AutoClaw Setup Wizard 🦞\n"));
+  console.log(chalk.dim(`Config will be saved to: ${targetFile}`));
+
+  // Load both to show current effective values as defaults
+  const globalConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
+  const localConfig = loadJsonConfig(LOCAL_CONFIG_FILE);
+  // If setting up Global (default), prioritize Global values for display, falling back to Local.
+  // If setting up Project, prioritize Project values (standard effective config).
+  const currentConfig = isProject 
+    ? { ...globalConfig, ...localConfig }
+    : { ...localConfig, ...globalConfig };
 
   function maskSecret(secret?: string): string {
     if (!secret || secret.length < 8) return '******';
@@ -134,6 +157,12 @@ async function runSetup() {
     },
     {
       type: 'confirm',
+      name: 'configureImage',
+      message: 'Do you want to configure a separate Image Generation Service (DALL-E)?',
+      default: !!currentConfig.imageApiKey
+    },
+    {
+      type: 'confirm',
       name: 'configureEmail',
       message: 'Do you want to configure the Email Tool (SMTP)?',
       default: !!currentConfig.smtpHost
@@ -154,6 +183,37 @@ async function runSetup() {
 
   // Resolve sensitive values (Keep old if empty)
   const finalApiKey = answers.apiKey || currentConfig.apiKey;
+
+  let imageConfig: any = {};
+  if (answers.configureImage) {
+    const imageAnswers = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'imageApiKey',
+        message: currentConfig.imageApiKey
+          ? `Enter Image Service API Key (Leave empty to keep ${maskSecret(currentConfig.imageApiKey)}, or leave empty to use main API key):`
+          : 'Enter Image Service API Key (Leave empty to use main API key):',
+        mask: '*'
+      },
+      {
+        type: 'input',
+        name: 'imageBaseUrl',
+        message: 'Enter Image Service Base URL:',
+        default: currentConfig.imageBaseUrl || currentConfig.baseUrl || 'https://api.openai.com/v1'
+      },
+      {
+        type: 'input',
+        name: 'imageModel',
+        message: 'Default Image Model:',
+        default: currentConfig.imageModel || 'dall-e-3'
+      }
+    ]);
+    imageConfig = {
+      imageApiKey: imageAnswers.imageApiKey || currentConfig.imageApiKey,
+      imageBaseUrl: imageAnswers.imageBaseUrl,
+      imageModel: imageAnswers.imageModel
+    };
+  }
 
   let emailConfig: any = {};
   if (answers.configureEmail) {
@@ -223,6 +283,12 @@ async function runSetup() {
         mask: '*'
       },
       {
+        type: 'input',
+        name: 'feishuKeyword',
+        message: 'Feishu Security Keyword (Optional):',
+        default: currentConfig.feishuKeyword
+      },
+      {
         type: 'password',
         name: 'dingtalkWebhook',
         message: currentConfig.dingtalkWebhook
@@ -231,18 +297,33 @@ async function runSetup() {
         mask: '*'
       },
       {
+        type: 'input',
+        name: 'dingtalkKeyword',
+        message: 'DingTalk Security Keyword (Optional):',
+        default: currentConfig.dingtalkKeyword
+      },
+      {
         type: 'password',
         name: 'wecomWebhook',
         message: currentConfig.wecomWebhook
           ? `WeCom Webhook (Leave empty to keep ${maskSecret(currentConfig.wecomWebhook)}):`
           : 'WeCom Webhook (Optional):',
         mask: '*'
+      },
+      {
+        type: 'input',
+        name: 'wecomKeyword',
+        message: 'WeCom Security Keyword (Optional):',
+        default: currentConfig.wecomKeyword
       }
     ]);
     notifyConfig = {
       feishuWebhook: notifyAnswers.feishuWebhook || currentConfig.feishuWebhook,
+      feishuKeyword: notifyAnswers.feishuKeyword || currentConfig.feishuKeyword,
       dingtalkWebhook: notifyAnswers.dingtalkWebhook || currentConfig.dingtalkWebhook,
-      wecomWebhook: notifyAnswers.wecomWebhook || currentConfig.wecomWebhook
+      dingtalkKeyword: notifyAnswers.dingtalkKeyword || currentConfig.dingtalkKeyword,
+      wecomWebhook: notifyAnswers.wecomWebhook || currentConfig.wecomWebhook,
+      wecomKeyword: notifyAnswers.wecomKeyword || currentConfig.wecomKeyword
     };
   }
 
@@ -250,17 +331,18 @@ async function runSetup() {
     apiKey: finalApiKey,
     baseUrl: answers.baseUrl,
     model: answers.model,
+    ...imageConfig,
     ...emailConfig,
     ...searchConfig,
     ...notifyConfig
   };
 
   try {
-    if (!fs.existsSync(GLOBAL_CONFIG_DIR)) {
-      fs.mkdirSync(GLOBAL_CONFIG_DIR, { recursive: true });
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
-    fs.writeFileSync(GLOBAL_CONFIG_FILE, JSON.stringify(newConfig, null, 2), { mode: 0o600 });
-    console.log(chalk.green(`\n✅ Configuration saved to ${GLOBAL_CONFIG_FILE}`));
+    fs.writeFileSync(targetFile, JSON.stringify(newConfig, null, 2), { mode: 0o600 });
+    console.log(chalk.green(`\n✅ Configuration saved to ${targetFile}`));
     console.log(chalk.cyan("You can now run 'autoclaw' to start using the agent."));
   } catch (error: any) {
     console.error(chalk.red(`Failed to write config: ${error.message}`));
@@ -302,8 +384,11 @@ async function runChat(queryParts: string[], options: any) {
   if (process.env.SMTP_PASS) fullConfig.smtpPass = process.env.SMTP_PASS;
   if (process.env.TAVILY_API_KEY) fullConfig.tavilyApiKey = process.env.TAVILY_API_KEY;
   if (process.env.FEISHU_WEBHOOK) fullConfig.feishuWebhook = process.env.FEISHU_WEBHOOK;
+  if (process.env.FEISHU_KEYWORD) fullConfig.feishuKeyword = process.env.FEISHU_KEYWORD;
   if (process.env.DINGTALK_WEBHOOK) fullConfig.dingtalkWebhook = process.env.DINGTALK_WEBHOOK;
+  if (process.env.DINGTALK_KEYWORD) fullConfig.dingtalkKeyword = process.env.DINGTALK_KEYWORD;
   if (process.env.WECOM_WEBHOOK) fullConfig.wecomWebhook = process.env.WECOM_WEBHOOK;
+  if (process.env.WECOM_KEYWORD) fullConfig.wecomKeyword = process.env.WECOM_KEYWORD;
 
   if (!apiKey) {
     console.log(chalk.yellow("API Key not found."));
@@ -355,15 +440,15 @@ async function runChat(queryParts: string[], options: any) {
   }
 
   // Main chat loop
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: true
+  });
+
   try {
     while (true) {
-      const { userInput } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'userInput',
-          message: 'You >'
-        }
-      ]);
+      const userInput = await rl.question(chalk.green('?') + ' You > ');
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log(chalk.cyan("Goodbye!"));
@@ -372,15 +457,21 @@ async function runChat(queryParts: string[], options: any) {
 
       if (userInput.trim() === '') continue;
 
-      await agent.chat(userInput);
+      rl.pause();
+      try {
+        await agent.chat(userInput);
+      } finally {
+        rl.resume();
+      }
     }
   } catch (err: any) {
-    // Check for Inquirer interruption error (Ctrl+C often causes this)
     if (err.message && (err.message.includes('User force closed') || err.message.includes('Prompt was canceled'))) {
        console.log(chalk.cyan("\nGoodbye!"));
-       process.exit(0);
+    } else {
+       console.error(chalk.red("Error in chat loop:"), err);
     }
-    throw err; // Re-throw real errors to be caught by main().catch
+  } finally {
+    rl.close();
   }
 }
 

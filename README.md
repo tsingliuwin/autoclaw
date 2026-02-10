@@ -1,23 +1,26 @@
 # AutoClaw 🦞
 
-**The Docker-Native Headless Agent for Massive Scale Automation.**
+**The Engineering-First Headless Agent Framework: Stable, Scalable Automation for the Post-Vision Era.**
 
-AutoClaw is a hyper-lightweight AI agent designed to live inside **Docker containers**. Unlike heavy, GUI-dependent agents, AutoClaw is built for **headless, massive-scale concurrency**.
+English | [简体中文](./README.zh-CN.md)
 
-You can run one instance to fix a local script, or orchestrate **10,000+ instances** in a Kubernetes cluster to refactor codebases, audit servers, or process data streams in parallel.
+AutoClaw is a high-stability, open-source automation framework specifically engineered for **headless systems**.
+
+Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretation, AutoClaw is built on a foundation of precise command-driven execution. This makes it significantly more **stable**, **robust from an engineering perspective**, and **easier to scale** across complex environments—whether it's a local server, a CI/CD pipeline, or thousands of containerized nodes.
 
 ## Why AutoClaw?
 - 🐳 **Docker Native**: Built to run safely inside containers. Minimal footprint (Node.js/Alpine friendly).
-- 🚀 **Massive Scalability**: Text-only, headless design means you can spawn thousands of agents without consuming graphical resources.
-- 🛡️ **Sandbox Safety**: Ideal for running untrusted code when isolated in Docker.
+- 🚀 **Better Engineering**: Operates via precise system APIs and shell commands rather than unstable visual recognition, ensuring deterministic outcomes.
+- 🛡️ **Superior Stability**: Immune to issues like UI rendering, screen resolution, or network lag that plague vision-based agents.
+- 📈 **Massive Scalability**: Low resource consumption allows orchestrating thousands of instances (e.g., in K8s) for true automation swarms.
 - 🔌 **Swarm Ready**: Stateless design allows for easy orchestration via K8s, Docker Swarm, or simple shell loops.
 
 ## Features
 
 - 📜 **Headless Execution**: No browsers, no GUIs. Pure terminal efficiency.
 - 🤖 **Non-Interactive**: Intelligent flag handling (`-y`) for zero-touch automation.
-- 📂 **Universal Control**: From simple file I/O to complex system administration.
-- 🧠 **Context Aware**: Detects container environments to optimize command strategies.
+- 📂 **Universal Control**: From simple file I/O to complex system administration and code refactoring.
+- 🧠 **Context Aware**: Detects OS and container environments to optimize command strategies.
 
 ## Installation
 

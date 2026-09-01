@@ -436,7 +436,7 @@ async function runChat(queryParts: string[], options: any) {
   // Inject Env vars
   if (process.env.SMTP_HOST) fullConfig.smtpHost = process.env.SMTP_HOST;
   if (process.env.SMTP_PORT) fullConfig.smtpPort = process.env.SMTP_PORT;
-  if (process.env.SMTP_User) fullConfig.smtpUser = process.env.SMTP_USER;
+  if (process.env.SMTP_USER) fullConfig.smtpUser = process.env.SMTP_USER;
   if (process.env.SMTP_PASS) fullConfig.smtpPass = process.env.SMTP_PASS;
   if (process.env.TAVILY_API_KEY) fullConfig.tavilyApiKey = process.env.TAVILY_API_KEY;
   if (process.env.FEISHU_WEBHOOK) fullConfig.feishuWebhook = process.env.FEISHU_WEBHOOK;

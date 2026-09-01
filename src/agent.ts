@@ -17,7 +17,7 @@ export class Agent {
   private config: any;
   public lastOutputFile: string | null = null;
 
-  constructor(apiKey: string, baseURL: string | undefined, model: string = 'gpt-4-turbo-preview', config: any = {}) {
+  constructor(apiKey: string, baseURL: string | undefined, model: string = 'gpt-5.6', config: any = {}) {
     this.client = new OpenAI({
       apiKey: apiKey,
       baseURL: baseURL

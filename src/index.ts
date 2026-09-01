@@ -174,7 +174,7 @@ async function runSetup(options: any = {}) {
       type: 'input',
       name: 'model',
       message: 'Enter default Model:',
-      default: currentConfig.model || preset?.defaultModel || 'gpt-4o'
+      default: currentConfig.model || preset?.defaultModel || 'gpt-5.6'
     },
     {
       type: 'confirm',
@@ -428,7 +428,7 @@ async function runChat(queryParts: string[], options: any) {
   // 5. Resolve Env Vars (CLI > Env > Config > Provider preset)
   let apiKey = process.env.OPENAI_API_KEY || fullConfig.apiKey || (preset?.apiKeyEnv ? process.env[preset.apiKeyEnv] : undefined);
   let baseURL = process.env.OPENAI_BASE_URL || fullConfig.baseUrl || preset?.baseUrl;
-  let model = options.model || process.env.OPENAI_MODEL || fullConfig.model || preset?.defaultModel || 'gpt-4o';
+  let model = options.model || process.env.OPENAI_MODEL || fullConfig.model || preset?.defaultModel || 'gpt-5.6';
   
   // Inject Runtime Flags
   fullConfig.autoConfirm = options.yes;
@@ -463,7 +463,7 @@ async function runChat(queryParts: string[], options: any) {
       const setupPreset = resolveProvider(newConfig.provider);
       apiKey = newConfig.apiKey || (setupPreset?.apiKeyEnv ? process.env[setupPreset.apiKeyEnv] : undefined);
       baseURL = newConfig.baseUrl || setupPreset?.baseUrl;
-      model = options.model || newConfig.model || setupPreset?.defaultModel || 'gpt-4o';
+      model = options.model || newConfig.model || setupPreset?.defaultModel || 'gpt-5.6';
       Object.assign(fullConfig, newConfig);
     } else {
       console.error(chalk.red("API Key is required to proceed."));

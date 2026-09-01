@@ -12,43 +12,43 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
   openai: {
     label: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
-    defaultModel: 'gpt-4o',
+    defaultModel: 'gpt-5.6',
     apiKeyEnv: 'OPENAI_API_KEY'
   },
   deepseek: {
     label: 'DeepSeek',
     baseUrl: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-chat',
+    defaultModel: 'deepseek-v4-pro',
     apiKeyEnv: 'DEEPSEEK_API_KEY'
   },
   moonshot: {
     label: 'Moonshot (Kimi)',
     baseUrl: 'https://api.moonshot.cn/v1',
-    defaultModel: 'kimi-latest',
+    defaultModel: 'kimi-k3',
     apiKeyEnv: 'MOONSHOT_API_KEY'
   },
   dashscope: {
     label: 'Alibaba DashScope (Qwen)',
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    defaultModel: 'qwen-plus',
+    defaultModel: 'qwen3.8-max',
     apiKeyEnv: 'DASHSCOPE_API_KEY'
   },
   zhipu: {
     label: 'Zhipu (GLM)',
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-    defaultModel: 'glm-4.6',
+    defaultModel: 'glm-5',
     apiKeyEnv: 'ZHIPU_API_KEY'
   },
   openrouter: {
     label: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',
-    defaultModel: 'openai/gpt-4o-mini',
+    defaultModel: 'openai/gpt-5.6',
     apiKeyEnv: 'OPENROUTER_API_KEY'
   },
   ollama: {
     label: 'Ollama (local)',
     baseUrl: 'http://localhost:11434/v1',
-    defaultModel: 'llama3.2'
+    defaultModel: 'qwen3'
   }
 };
 

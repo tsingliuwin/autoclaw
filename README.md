@@ -105,7 +105,7 @@ autoclaw "Refactor src/index.ts to use ES modules" -y
 ```
 
 ### CLI Options
-- `-m, --model <model>`: Specify the LLM model (default: `gpt-4o`).
+- `-m, --model <model>`: Specify the LLM model (default: `gpt-5.6`).
 - `-P, --provider <name>`: Use a provider preset (see [Providers](#providers)).
 - `-n, --no-interactive`: Exit after processing the initial query (Headless mode).
 - `-y, --yes`: Auto-confirm all tool executions (e.g., shell commands).
@@ -142,7 +142,7 @@ AutoClaw uses a hierarchical configuration system.
 Create a file at `.autoclaw/setting.json`:
 ```json
 {
-  "model": "gpt-3.5-turbo",
+  "model": "gpt-5.6",
   "baseUrl": "https://api.deepseek.com/v1"
 }
 ```

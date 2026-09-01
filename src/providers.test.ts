@@ -4,7 +4,7 @@ import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js
 describe('provider presets', () => {
   it('resolves presets case-insensitively', () => {
     expect(resolveProvider('deepseek')?.baseUrl).toBe('https://api.deepseek.com/v1');
-    expect(resolveProvider('DeepSeek')?.defaultModel).toBe('deepseek-chat');
+    expect(resolveProvider('DeepSeek')?.defaultModel).toBe('deepseek-v4-pro');
     expect(resolveProvider('MOONSHOT')?.label).toContain('Kimi');
   });
 

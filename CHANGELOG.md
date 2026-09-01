@@ -1,25 +1,23 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.2 (2026-09-01)
 
 ### Added
 - **Setup wizard hardening**: live connection test with actionable error mapping (401 = API key, 404 = base URL, 400 = model name; retry / re-enter / save-anyway loop), model selection from the provider's own `/models` catalog when available, and a saved-config summary line.
-
-### Fixed
-- **Setup wizard crashed on the first question** since 1.2.0: the provider selector used inquirer's removed `list` prompt type under inquirer v13; now uses `select`.
-
-### Added (local capability wave)
 - **Shell execution layer** (`src/shell.ts`): resolves a concrete shell (Git Bash > PowerShell > cmd on Windows; `config.shell` / `AUTOCLOW_SHELL` override) and drives it via spawn with explicit argv — no more cmd.exe-by-default. Timeouts kill the whole process tree (`taskkill /T /F`), output is decoded as UTF-8 with GBK fallback, and `maxBuffer` overflow truncates instead of throwing.
 - **On-demand tool registration**: optional tools (email, search, group notify, image, prompt optimizer — and browser/screenshot when playwright is missing) are dropped from the tool definitions and the system prompt until their credentials exist, cutting per-turn prompt overhead.
 - **Tool-result trimming**: in long loops, tool results older than the last three are replaced in history by a bounded excerpt with a re-run hint; large outputs stay on disk via `/view`.
 - **Batch `--resume`**: skips tasks already `completed` in the results file and carries their results over — `--fail-fast` then `--resume` forms a natural retry loop.
 - **Batch `-c/--concurrency <n>`**: run up to N tasks in parallel (default: 1, sequential).
+- Performance budget suite runs as part of `npm test`: 1MB file write/read, 50k-line truncation, 1MB decode, and shell spawn each must finish under loose CI-safe latency ceilings.
 
 ### Changed
 - **Per-tool hardening**: `read_file` caps reads at 1MB with a truncation notice and refuses binary files (NUL detection) instead of returning mojibake; all outbound HTTP calls (web search, group notify, image download, setup connection test / model catalog) now time out (15–120s) instead of hanging forever; nodemailer uses explicit connection/greeting/socket timeouts.
-- Performance budget suite runs as part of `npm test`: 1MB file write/read, 50k-line truncation, 1MB decode, and shell spawn each must finish under loose CI-safe latency ceilings (catches unbounded reads and accidental complexity).
 
-## 1.3.0 (2026-09-01)
+### Fixed
+- **Setup wizard crashed on the first question** since 1.2.0: the provider selector used inquirer's removed `list` prompt type under inquirer v13; now uses `select`.
+
+## 1.3.1 (2026-09-01)
 
 ### Added
 - **Batch mode** (`autoclaw batch <manifest.jsonl>`): run a JSONL task list sequentially, each task in a fresh isolated agent; per-task results (`status`, `steps`, `message`, `error`, `usage`) written to a JSONL file (`-o`, default `<manifest>.results.jsonl`). Continue-on-error with `--fail-fast` opt-in; process exits `0` only when every task completed. Optional per-task `maxSteps` / `model` / `provider` overrides.

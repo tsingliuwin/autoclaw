@@ -11,6 +11,27 @@ const SHELL_MAX_BUFFER = 10 * 1024 * 1024;
 // the agent-level truncation in truncate.ts applies on top of this.
 const READ_FILE_MAX_BYTES = 1024 * 1024;
 
+// Even with -y, an unattended agent must not execute clearly destructive
+// commands — a poisoned tool result (e.g. prompt injection via a web page)
+// would otherwise reach the shell directly. Matched commands are refused
+// with a message the model can act on; --allow-dangerous overrides.
+export const DANGEROUS_PATTERNS: { re: RegExp; label: string }[] = [
+  { re: /\brm\s+(?:-\w+\s+)*-\w*[rR]\w*[fF]\b/, label: 'rm with recursive+force' },
+  { re: /\b(?:rd|rmdir|del|erase)\s+\/[sS]\b/, label: 'Windows recursive delete (rd/del /s)' },
+  { re: /\bRemove-Item\b[^;\n]*-(?:Recurse[^;\n]*Force|Force[^;\n]*Recurse)/i, label: 'PowerShell Remove-Item -Recurse -Force' },
+  { re: /\b(?:format|diskpart)\b/i, label: 'disk format / diskpart' },
+  { re: /\bmkfs(?:\.\w+)?\b/i, label: 'mkfs' },
+  { re: /\bdd\b[^|]*\bof=/i, label: 'dd raw write' },
+  { re: /(?:>>?|tee)\s*\/dev\/(?:sd|nvme|hd|vd)[a-z]/i, label: 'write to block device' },
+  { re: /\b(?:shutdown|reboot|halt|poweroff)\b/i, label: 'host power control' },
+  { re: /\breg\s+delete\b/i, label: 'registry delete' }
+];
+
+export function matchDangerousPattern(command: string): string | null {
+  const hit = DANGEROUS_PATTERNS.find(p => p.re.test(command));
+  return hit ? hit.label : null;
+}
+
 export const ShellTool: ToolModule = {
   name: "Shell Execution",
   definition: {
@@ -31,6 +52,15 @@ export const ShellTool: ToolModule = {
   handler: async (args: any, config: any) => {
     console.log(chalk.yellow(`\nAI wants to execute: `) + chalk.bold(args.command));
     console.log(chalk.dim(`Reason: ${args.rationale}`));
+
+    // Safety gate runs first: blocked commands are refused even with --yes.
+    if (!config?.allowDangerous) {
+      const label = matchDangerousPattern(args.command);
+      if (label) {
+        console.log(chalk.red(`\n[blocked] ${label}`));
+        return `Error: command blocked by AutoClaw safety policy (matched: ${label}). It was NOT executed. If this task genuinely requires it, the user must restart AutoClaw with --allow-dangerous; otherwise find a safer way to achieve the same goal.`;
+      }
+    }
 
     const timeoutMs = Number(config?.shellTimeout || process.env.AUTOCLOW_SHELL_TIMEOUT || DEFAULT_SHELL_TIMEOUT_MS);
 

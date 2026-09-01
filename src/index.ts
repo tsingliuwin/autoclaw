@@ -53,6 +53,7 @@ interface AppConfig {
   imageStyle?: string;
   imageN?: number;
   autoConfirm?: boolean;
+  allowDangerous?: boolean;
   jsonMode?: boolean;
   includeUsage?: boolean;
   maxSteps?: number;
@@ -101,6 +102,7 @@ program
   .option('-P, --provider <name>', 'Use a provider preset (openai, deepseek, moonshot, dashscope, zhipu, openrouter, ollama)')
   .option('-n, --no-interactive', 'Exit after processing the initial query (Headless mode)')
   .option('-y, --yes', 'Auto-confirm all tool executions (e.g., shell commands)')
+  .option('--allow-dangerous', 'Let -y run clearly destructive commands (rm -rf, format, shutdown, ...) without the safety block')
   .option('--json', 'Emit NDJSON events on stdout (for orchestrators; use with -n)');
 
 program
@@ -546,6 +548,7 @@ async function resolveRuntime(options: any, opts: { interactive?: boolean } = {}
 
   // Inject Runtime Flags
   fullConfig.autoConfirm = options.yes;
+  fullConfig.allowDangerous = !!options.allowDangerous;
   fullConfig.jsonMode = !!options.json;
   // Usage tracking is opt-in: not every OpenAI-compatible provider accepts
   // stream_options.include_usage, so never force it on.

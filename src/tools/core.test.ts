@@ -109,6 +109,44 @@ describe('ShellTool', () => {
     expect(result).toContain('42');
   });
 
+  it('blocks clearly destructive commands even with autoConfirm', async () => {
+    const result = await ShellTool.handler(
+      { command: 'rm -rf /', rationale: 'test' },
+      { autoConfirm: true }
+    );
+
+    expect(result).toContain('blocked by AutoClaw safety policy');
+    expect(result).toContain('rm with recursive+force');
+    expect(result).toContain('--allow-dangerous');
+  });
+
+  it('blocks PowerShell recursive deletes and disk tooling', async () => {
+    for (const cmd of ['Remove-Item C:\\data -Recurse -Force', 'format D: /q', 'shutdown /r']) {
+      const result = await ShellTool.handler({ command: cmd, rationale: 'test' }, { autoConfirm: true });
+      expect(result).toContain('blocked by AutoClaw safety policy');
+    }
+  });
+
+  it('runs benign commands without blocking', async () => {
+    const result = await ShellTool.handler(
+      { command: 'node -e "console.log(\'cleanup done\')"', rationale: 'test' },
+      { autoConfirm: true }
+    );
+
+    expect(result).not.toContain('blocked');
+    expect(result).toContain('cleanup done');
+  });
+
+  it('allows destructive commands only with allowDangerous', async () => {
+    const result = await ShellTool.handler(
+      { command: 'echo rm -rf demo', rationale: 'test' },
+      { autoConfirm: true, allowDangerous: true }
+    );
+
+    expect(result).not.toContain('blocked');
+    expect(result).toContain('rm -rf demo');
+  });
+
   it('kills commands that exceed the configured timeout', async () => {
     const result = await ShellTool.handler(
       { command: 'node -e "setTimeout(()=>{},10000)"', rationale: 'test' },

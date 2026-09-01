@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.3 (2026-09-01)
 
 ### Added
 - **`autoclaw doctor`**: headless self-diagnosis — config files, resolved provider/baseUrl/model, API key, a live connection test, resolved shell, registered tools, and playwright browser status; ✓/✗ output and an exit code (0 ready / 1 critical failure). `resolveRuntime` gained an interactive flag so doctor reports a missing key instead of prompting.

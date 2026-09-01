@@ -8,17 +8,9 @@ import * as util from 'util';
 import { getToolDefinitions, executeToolHandler } from './tools/index.js';
 import { withRetry } from './retry.js';
 import { truncateOutput } from './truncate.js';
+import { buildShellInfo, resolveShellType } from './shell.js';
 
 const DEFAULT_MAX_STEPS = 25;
-
-// The shell behind child_process.exec differs by platform; telling the model
-// up front avoids trial-and-error turns (cmd.exe rejects ; and $()).
-export function buildShellInfo(platform: string = os.platform()): string {
-  if (platform === 'win32') {
-    return 'cmd.exe (Windows). Chain commands with && only, there is no $() command substitution, mkdir has no -p flag, and native tool output may be GBK-garbled. For system queries prefer: powershell -Command "..."';
-  }
-  return 'POSIX shell (sh). Standard Unix tools apply.';
-}
 
 export interface AgentUsage {
   prompt_tokens: number;
@@ -49,10 +41,12 @@ export class Agent {
     this.model = model;
     this.config = config;
 
+    const shellType = resolveShellType(config);
+
     const systemInfo = `
 System Information:
 - OS: ${os.type()} ${os.release()} (${os.platform()})
-- Shell: ${buildShellInfo()}
+- Shell: ${buildShellInfo(shellType)}
 - Architecture: ${os.arch()}
 - Node.js Version: ${process.version}
 - Current Working Directory: ${process.cwd()}
@@ -60,9 +54,11 @@ System Information:
 - Home Directory: ${os.homedir()}
 - Current Date: ${new Date().toLocaleString()}
 `;
-    const windowsShellRule = os.platform() === 'win32'
+    const shellRule = shellType === 'cmd'
       ? `\n8. Mind the shell noted above: on Windows it is cmd.exe, not bash — && only, no \$(...) substitution, no mkdir -p, GBK output possible; prefer powershell -Command "..." for system queries.`
-      : '';
+      : shellType === 'powershell'
+        ? `\n8. The shell is Windows PowerShell: use PowerShell syntax — \$( ) works, but && does not in Windows PowerShell 5; use ; or separate tool calls instead.`
+        : '';
 
     this.messages = [
       {
@@ -88,7 +84,7 @@ RULES OF ENGAGEMENT:
 4. Container-friendly: stick to standard Unix tools available in Alpine/Debian slim images. No GUI apps, no browser-based debug tools.
 5. For creative or complex tasks (image prompts, long-form writing, intricate scripts): call optimize_prompt first. It significantly raises output quality.
 6. If a command fails, diagnose and try one alternative. Don't retry the same thing, don't give up on first error.
-7. Read before write. When modifying a file, read it first. When installing a package, check if it's already there.${windowsShellRule}
+7. Read before write. When modifying a file, read it first. When installing a package, check if it's already there.${shellRule}
 `
       }
     ];

@@ -1,12 +1,9 @@
-import { exec } from 'child_process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import util from 'util';
 import { ToolModule } from './interface.js';
-
-const execAsync = util.promisify(exec);
+import { execShellCommand } from '../shell.js';
 
 const DEFAULT_SHELL_TIMEOUT_MS = 120000;
 const SHELL_MAX_BUFFER = 10 * 1024 * 1024;
@@ -56,15 +53,16 @@ export const ShellTool: ToolModule = {
     }
 
     try {
-      const { stdout, stderr } = await execAsync(args.command, {
-        timeout: timeoutMs,
-        maxBuffer: SHELL_MAX_BUFFER
-      });
-      return stdout + (stderr ? `\nStderr: ${stderr}` : '');
-    } catch (error: any) {
-      if (error.killed === true || error.signal) {
-        return `Command timed out after ${timeoutMs}ms and was terminated.\nStdout: ${error.stdout ?? ''}\nStderr: ${error.stderr ?? ''}`;
+      const r = await execShellCommand(args.command, { timeoutMs, maxBuffer: SHELL_MAX_BUFFER });
+      if (r.timedOut) {
+        return `Command timed out after ${timeoutMs}ms and was terminated.\nStdout: ${r.stdout}\nStderr: ${r.stderr}`;
       }
+      return (
+        r.stdout +
+        (r.truncated ? '\n[AutoClaw] Output truncated at the buffer limit.' : '') +
+        (r.stderr ? `\nStderr: ${r.stderr}` : '')
+      );
+    } catch (error: any) {
       return `Command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}`;
     }
   }

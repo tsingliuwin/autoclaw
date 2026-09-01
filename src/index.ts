@@ -93,7 +93,8 @@ program
   .option('-m, --model <model>', 'Model to use')
   .option('-P, --provider <name>', 'Use a provider preset (openai, deepseek, moonshot, dashscope, zhipu, openrouter, ollama)')
   .option('-n, --no-interactive', 'Exit after processing the initial query (Headless mode)')
-  .option('-y, --yes', 'Auto-confirm all tool executions (e.g., shell commands)');
+  .option('-y, --yes', 'Auto-confirm all tool executions (e.g., shell commands)')
+  .option('--json', 'Emit NDJSON events on stdout (for orchestrators; use with -n)');
 
 program
   .command('setup')
@@ -432,6 +433,13 @@ async function runChat(queryParts: string[], options: any) {
   
   // Inject Runtime Flags
   fullConfig.autoConfirm = options.yes;
+  fullConfig.jsonMode = !!options.json;
+  // Usage tracking is opt-in: not every OpenAI-compatible provider accepts
+  // stream_options.include_usage, so never force it on.
+  fullConfig.includeUsage =
+    !!fullConfig.includeUsage ||
+    process.env.AUTOCLOW_INCLUDE_USAGE === '1' ||
+    process.env.AUTOCLOW_INCLUDE_USAGE === 'true';
 
   // Inject Env vars
   if (process.env.SMTP_HOST) fullConfig.smtpHost = process.env.SMTP_HOST;
@@ -488,11 +496,12 @@ async function runChat(queryParts: string[], options: any) {
     if (options.interactive) {
         console.log(chalk.blue("\nProcessing initial request: ") + chalk.bold(initialQuery));
     }
-    await agent.chat(initialQuery);
-    
-    // Headless mode exit
+    const result = await agent.chat(initialQuery);
+
+    // Headless mode exit — the exit code is the orchestrator-facing outcome:
+    // 0 completed, 1 hard failure, 2 step cap reached (task unfinished).
     if (!options.interactive) {
-      process.exit(0);
+      process.exit(result.status === 'completed' ? 0 : result.status === 'max_steps' ? 2 : 1);
     }
   }
 

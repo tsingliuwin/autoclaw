@@ -102,6 +102,14 @@ Run a single command and exit.
 ```bash
 autoclaw "Check disk usage and save the report to usage.txt" --no-interactive
 ```
+The exit code reports the outcome for orchestrators: `0` completed, `1` hard failure (e.g. API error), `2` step cap reached (task unfinished).
+
+### Machine-Readable Output (--json)
+Add `--json` to print one JSON event per line on stdout (run_start, tool_call, tool_result, usage, run_end); human output moves to stderr, including anything tools print themselves.
+```bash
+autoclaw "Deploy and report" -y -n --json
+```
+Token usage is collected only when `AUTOCLOW_INCLUDE_USAGE=1` (or `true`) is set — it is opt-in because not every OpenAI-compatible provider accepts `stream_options.include_usage`.
 
 ### Auto-Confirm (CI/CD)
 Automatically approve all tool executions (dangerous, use with caution or in sandboxes).
@@ -114,6 +122,7 @@ autoclaw "Refactor src/index.ts to use ES modules" -y
 - `-P, --provider <name>`: Use a provider preset (see [Providers](#providers)).
 - `-n, --no-interactive`: Exit after processing the initial query (Headless mode).
 - `-y, --yes`: Auto-confirm all tool executions (e.g., shell commands).
+- `--json`: Emit NDJSON events on stdout (for orchestrators; use with `-n`).
 
 ### Providers
 AutoClaw works with any OpenAI-compatible endpoint. Built-in presets fill in the base URL and a default model for you:
@@ -158,6 +167,7 @@ Create a file at `.autoclaw/setting.json`:
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: main LLM settings.
 - `AUTOCLOW_PROVIDER`: provider preset used when `-P` is not passed.
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: reliability limits (max LLM turns per task; shell timeout in ms).
+- `AUTOCLOW_INCLUDE_USAGE`: set to `1`/`true` to request token usage from the API (opt-in).
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: tool credentials as an alternative to setup.
 
 ## Integrations

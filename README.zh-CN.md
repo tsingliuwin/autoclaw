@@ -103,6 +103,14 @@ autoclaw
 ```bash
 autoclaw "检查磁盘使用情况并将报告保存到 usage.txt" --no-interactive
 ```
+退出码向编排器报告结果：`0` 完成，`1` 硬性失败（如 API 错误），`2` 触发步数上限（任务未完成）。
+
+### 机器可读输出 (--json)
+加 `--json` 后，stdout 每行输出一个 JSON 事件（run_start、tool_call、tool_result、usage、run_end）；人类可读输出（包括工具自己打印的内容）全部转到 stderr。
+```bash
+autoclaw "执行部署并汇报" -y -n --json
+```
+Token 用量仅在设置 `AUTOCLOW_INCLUDE_USAGE=1`（或 `true`）时才收集——这是可选项，因为并非所有 OpenAI 兼容端点都接受 `stream_options.include_usage`。
 
 ### 自动确认 (CI/CD)
 自动批准所有工具执行（危险操作，请谨慎使用或在沙箱环境下运行）。
@@ -115,6 +123,7 @@ autoclaw "将 src/index.ts 重构为使用 ES 模块" -y
 - `-P, --provider <name>`: 使用 provider 预设 (见 [Provider 预设](#provider-预设))。
 - `-n, --no-interactive`: 处理完初始查询后退出 (无头模式)。
 - `-y, --yes`: 自动确认所有工具执行 (例如 Shell 命令)。
+- `--json`: 在 stdout 输出 NDJSON 事件流 (供编排器使用,配合 `-n`)。
 
 ### Provider 预设
 AutoClaw 可对接任意 OpenAI 兼容端点。内置预设可自动填好 Base URL 和默认模型：
@@ -159,6 +168,7 @@ AutoClaw 使用层级配置系统。
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: 主模型设置。
 - `AUTOCLOW_PROVIDER`: 未传 `-P` 时使用的 provider 预设。
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: 稳定性限制（单任务最大轮数；Shell 超时毫秒数）。
+- `AUTOCLOW_INCLUDE_USAGE`: 设为 `1`/`true` 时向 API 请求 token 用量（可选开启）。
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: 工具凭据，可作为 setup 的替代方式。
 
 ## 集成功能

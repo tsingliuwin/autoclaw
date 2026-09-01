@@ -4,11 +4,26 @@ import ora from 'ora';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as util from 'util';
 import { getToolDefinitions, executeToolHandler } from './tools/index.js';
 import { withRetry } from './retry.js';
 import { truncateOutput } from './truncate.js';
 
 const DEFAULT_MAX_STEPS = 25;
+
+export interface AgentUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface AgentRunResult {
+  status: 'completed' | 'error' | 'max_steps';
+  steps: number;
+  error?: string;
+  message?: string | null;
+  usage?: AgentUsage;
+}
 
 export class Agent {
   private client: OpenAI;
@@ -66,19 +81,53 @@ RULES OF ENGAGEMENT:
     ];
   }
 
-  async chat(userInput: string): Promise<void> {
+  private get jsonMode(): boolean {
+    return !!this.config?.jsonMode;
+  }
+
+  private emitEvent(event: Record<string, unknown>) {
+    if (this.jsonMode) console.log(JSON.stringify(event));
+  }
+
+  // Tool handlers print progress via console; in JSON mode stdout is an NDJSON
+  // contract, so route those prints to stderr for the duration of the call.
+  private async runToolQuietly(run: () => Promise<string>): Promise<string> {
+    const original = [console.log, console.info, console.warn, console.error];
+    const toStderr = (...args: unknown[]) => process.stderr.write(util.format(...args) + '\n');
+    [console.log, console.info, console.warn, console.error] = [toStderr, toStderr, toStderr, toStderr] as any;
+    try {
+      return await run();
+    } finally {
+      [console.log, console.info, console.warn, console.error] = original;
+    }
+  }
+
+  async chat(userInput: string): Promise<AgentRunResult> {
     this.messages.push({ role: "user", content: userInput });
 
     const maxSteps = Number(this.config?.maxSteps || process.env.AUTOCLOW_MAX_STEPS || DEFAULT_MAX_STEPS);
     let active = true;
     let step = 0;
+    let status: AgentRunResult['status'] = 'completed';
+    let errorMessage: string | undefined;
+    let lastContent: string | null = null;
+    const totalUsage: AgentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+    let sawUsage = false;
+
+    this.emitEvent({ event: 'run_start', model: this.model, task: userInput });
+
     while (active) {
-      step++;
-      if (step > maxSteps) {
-        console.log(chalk.yellow(`\n[MaxSteps] Reached the ${maxSteps}-turn limit; stopping to avoid a runaway loop.`));
+      if (step >= maxSteps) {
+        status = 'max_steps';
+        if (!this.jsonMode) {
+          console.log(chalk.yellow(`\n[MaxSteps] Reached the ${maxSteps}-turn limit; stopping to avoid a runaway loop.`));
+        }
         break;
       }
-      const spinner = ora('Thinking...').start();
+      step++;
+      const spinner: any = this.jsonMode
+        ? { stop() {}, fail() {}, text: '' }
+        : ora('Thinking...').start();
 
       let stream: AsyncIterable<any>;
       try {
@@ -91,7 +140,10 @@ RULES OF ENGAGEMENT:
               messages: this.messages,
               tools: getToolDefinitions() as any,
               tool_choice: "auto",
-              stream: true
+              stream: true,
+              // Not every OpenAI-compatible provider accepts stream_options;
+              // usage tracking is therefore opt-in only.
+              ...(this.config?.includeUsage ? { stream_options: { include_usage: true } } : {})
           }) as unknown as AsyncIterable<any>,
           {
             onRetry: (err, nextAttempt, delayMs) => {
@@ -101,7 +153,9 @@ RULES OF ENGAGEMENT:
         );
       } catch (error: any) {
         spinner.fail('Error during processing');
-        console.error(chalk.red(error.message));
+        if (!this.jsonMode) console.error(chalk.red(error.message));
+        status = 'error';
+        errorMessage = error.message;
         active = false;
         break;
       }
@@ -115,16 +169,26 @@ RULES OF ENGAGEMENT:
 
       try {
         for await (const chunk of stream) {
+          if (chunk.usage) {
+            sawUsage = true;
+            totalUsage.prompt_tokens += chunk.usage.prompt_tokens ?? 0;
+            totalUsage.completion_tokens += chunk.usage.completion_tokens ?? 0;
+            totalUsage.total_tokens += chunk.usage.total_tokens ?? 0;
+          }
           const delta = chunk.choices[0]?.delta as any;
 
           // Handle reasoning/thinking content (e.g., DeepSeek)
           if (delta?.reasoning_content) {
             if (!reasoningStarted) {
               spinner.stop();
-              process.stdout.write(chalk.dim('\n[Thinking] '));
+              if (!this.jsonMode) {
+                process.stdout.write(chalk.dim('\n[Thinking] '));
+              }
               reasoningStarted = true;
             }
-            process.stdout.write(chalk.dim(delta.reasoning_content));
+            if (!this.jsonMode) {
+              process.stdout.write(chalk.dim(delta.reasoning_content));
+            }
             reasoningContent += delta.reasoning_content;
           }
 
@@ -132,15 +196,19 @@ RULES OF ENGAGEMENT:
           if (delta?.content) {
             if (!contentStarted) {
               spinner.stop();
-              if (reasoningStarted) process.stdout.write('\n');
-              process.stdout.write(chalk.blue("AutoClaw: "));
+              if (!this.jsonMode) {
+                if (reasoningStarted) process.stdout.write('\n');
+                process.stdout.write(chalk.blue("AutoClaw: "));
+              }
               contentStarted = true;
             }
-            process.stdout.write(delta.content);
+            if (!this.jsonMode) {
+              process.stdout.write(delta.content);
+            }
             content += delta.content;
           }
 
-          // Handle tool calls - show name as soon as available
+          // Handle tool calls
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
               const idx = tc.index;
@@ -151,32 +219,31 @@ RULES OF ENGAGEMENT:
               if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
               if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
 
-              // Show tool name as soon as it's complete
               if (tc.function?.name && !toolNamesSeen.has(idx)) {
                 toolNamesSeen.add(idx);
                 spinner.stop();
-                if (contentStarted) process.stdout.write('\n');
-                if (reasoningStarted && !contentStarted) process.stdout.write('\n');
-                process.stdout.write(chalk.cyan(`[Calling] ${tc.function.name}\n`));
+                if (!this.jsonMode) {
+                  if (contentStarted) process.stdout.write('\n');
+                  if (reasoningStarted && !contentStarted) process.stdout.write('\n');
+                  process.stdout.write(chalk.cyan(`[Calling] ${tc.function.name}\n`));
+                }
               }
             }
           }
         }
       } catch (error: any) {
         spinner.fail('Error during processing');
-        console.error(chalk.red(error.message));
+        if (!this.jsonMode) console.error(chalk.red(error.message));
+        status = 'error';
+        errorMessage = error.message;
         active = false;
         break;
       }
 
-      if (reasoningStarted) {
-        console.log(); // newline after reasoning
-      }
-      if (contentStarted) {
-        console.log(); // newline after streamed content
-      }
-      if (!reasoningStarted && !contentStarted) {
-        spinner.stop();
+      if (!this.jsonMode) {
+        if (reasoningStarted) console.log(); // newline after reasoning
+        if (contentStarted) console.log(); // newline after streamed content
+        if (!reasoningStarted && !contentStarted) spinner.stop();
       }
 
       // Build the full message for history
@@ -188,6 +255,7 @@ RULES OF ENGAGEMENT:
         message.content = message.content || null;
       }
       this.messages.push(message);
+      if (content) lastContent = content;
 
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
@@ -199,7 +267,9 @@ RULES OF ENGAGEMENT:
             functionArgs = JSON.parse(toolCall.function.arguments || '{}');
           } catch (parseError: any) {
             // Feed the failure back so the model can correct itself next turn
-            console.log(chalk.red(`\n[Tool] ${functionName} — malformed arguments (not valid JSON)`));
+            if (!this.jsonMode) {
+              console.log(chalk.red(`\n[Tool] ${functionName} — malformed arguments (not valid JSON)`));
+            }
             this.messages.push({
               role: "tool",
               tool_call_id: toolCall.id,
@@ -208,24 +278,26 @@ RULES OF ENGAGEMENT:
             continue;
           }
 
-          // Display tool call info
-          console.log(chalk.cyan(`\n[Tool] ${functionName}`));
-          const argsStr = JSON.stringify(functionArgs, null, 2);
-          const argsLines = argsStr.split('\n');
-          if (argsLines.length > 8) {
-            console.log(chalk.dim(argsLines.slice(0, 8).join('\n')));
-            console.log(chalk.dim(`  ... (${argsLines.length - 8} more lines)`));
+          if (this.jsonMode) {
+            this.emitEvent({ event: 'tool_call', step, tool: functionName, args: functionArgs });
           } else {
-            console.log(chalk.dim(argsStr));
+            // Display tool call info
+            console.log(chalk.cyan(`\n[Tool] ${functionName}`));
+            const argsStr = JSON.stringify(functionArgs, null, 2);
+            const argsLines = argsStr.split('\n');
+            if (argsLines.length > 8) {
+              console.log(chalk.dim(argsLines.slice(0, 8).join('\n')));
+              console.log(chalk.dim(`  ... (${argsLines.length - 8} more lines)`));
+            } else {
+              console.log(chalk.dim(argsStr));
+            }
           }
 
-          const execSpinner = ora('Executing...').start();
           let toolResult: string;
           try {
-            toolResult = await executeToolHandler(functionName, functionArgs, this.config);
-            execSpinner.stop();
+            const run = () => executeToolHandler(functionName, functionArgs, this.config);
+            toolResult = this.jsonMode ? await this.runToolQuietly(run) : await run();
           } catch (err: any) {
-            execSpinner.fail('Tool execution failed');
             toolResult = `Error: ${err.message}`;
           }
 
@@ -235,23 +307,35 @@ RULES OF ENGAGEMENT:
           const truncation = truncateOutput(toolResult);
           const boundedResult = truncation.content;
           const resultLines = boundedResult.split('\n');
-
-          console.log(chalk.green(`[Result]`));
+          let outputFile: string | null = null;
 
           if (resultLines.length > MAX_PREVIEW_LINES || truncation.truncated) {
-            console.log(resultLines.slice(0, MAX_PREVIEW_LINES).join('\n'));
-            const remaining = resultLines.length - MAX_PREVIEW_LINES;
-            if (remaining > 0) {
-              console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
-            }
-
-            // Save full output to file
-            const outputFile = await this.saveOutput(functionName, toolResult);
-            console.log(chalk.dim(`  Type '/view' to see full output`));
+            outputFile = await this.saveOutput(functionName, toolResult);
             this.lastOutputFile = outputFile;
-          } else {
+            if (!this.jsonMode) {
+              console.log(chalk.green(`[Result]`));
+              console.log(resultLines.slice(0, MAX_PREVIEW_LINES).join('\n'));
+              const remaining = resultLines.length - MAX_PREVIEW_LINES;
+              if (remaining > 0) {
+                console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
+              }
+              console.log(chalk.dim(`  Type '/view' to see full output`));
+            }
+          } else if (!this.jsonMode) {
+            console.log(chalk.green(`[Result]`));
             console.log(boundedResult);
             this.lastOutputFile = null;
+          }
+
+          if (this.jsonMode) {
+            this.emitEvent({
+              event: 'tool_result',
+              step,
+              tool: functionName,
+              truncated: truncation.truncated,
+              bytes: truncation.totalBytes,
+              ...(outputFile ? { output_file: outputFile } : {})
+            });
           }
 
           this.messages.push({
@@ -264,7 +348,20 @@ RULES OF ENGAGEMENT:
         active = false;
       }
 
+      if (sawUsage) {
+        this.emitEvent({ event: 'usage', step, ...totalUsage });
+      }
     }
+
+    const result: AgentRunResult = {
+      status,
+      steps: step,
+      message: lastContent,
+      ...(errorMessage ? { error: errorMessage } : {}),
+      ...(sawUsage ? { usage: totalUsage } : {})
+    };
+    this.emitEvent({ event: 'run_end', ...result });
+    return result;
   }
 
   private async saveOutput(functionName: string, toolResult: string): Promise<string> {

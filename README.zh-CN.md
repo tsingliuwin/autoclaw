@@ -131,6 +131,29 @@ autoclaw batch big.jsonl -y -c 4            # 最多 4 个任务并行
 
 AutoClaw 同时会自动给提示词瘦身：可选工具（网页搜索、邮件、群通知、图像生成）只在凭据配置后才会注册进工具定义；长循环中较早的工具结果会被替换为短摘要。
 
+### 实战配方
+
+Linux 定时巡检（crontab）：
+```cron
+0 9 * * * autoclaw batch /opt/ops/daily.jsonl -y -n --resume >> /var/log/autoclaw.log 2>&1
+```
+
+Windows 计划任务：
+```bash
+schtasks /create /tn "AutoClaw Daily" /tr "autoclaw batch C:\ops\daily.jsonl -y -n" /sc daily /st 09:00
+```
+
+一个清单内的流水线——前一个任务写文件,后一个任务读：
+```jsonl
+{"id": "sweep", "task": "检查磁盘与关键服务状态,报告写入 report/sweep.md"}
+{"id": "notify", "task": "读取 report/sweep.md,用三句话总结后推送到飞书"}
+```
+
+新机器或 CI 环境自检：
+```bash
+autoclaw doctor   # 退出 0 = 就绪;退出 1 = 打印缺失项
+```
+
 ### 自动确认 (CI/CD)
 自动批准所有工具执行（危险操作，请谨慎使用或在沙箱环境下运行）。
 ```bash
@@ -142,6 +165,11 @@ autoclaw "将 src/index.ts 重构为使用 ES 模块" -y
 - `-P, --provider <name>`: 使用 provider 预设 (见 [Provider 预设](#provider-预设))。
 - `-n, --no-interactive`: 处理完初始查询后退出 (无头模式)。
 - `-y, --yes`: 自动确认所有工具执行 (例如 Shell 命令)。
+- `--allow-dangerous`: 允许 `-y` 直接执行内置安全闸拦截的明显破坏性命令 (rm -rf、format、shutdown 等)。
+- `--json`: 在 stdout 输出 NDJSON 事件流 (供编排器使用,配合 `-n`)。
+
+### 诊断
+`autoclaw doctor` 无头完成全面自检,逐项打印 ✓/✗:配置文件、解析出的 provider/baseUrl/model、API key、真实连接测试、解析出的 shell、已注册工具、playwright 浏览器状态。退出 `0` = 就绪,`1` = 有关键项失败(会打印是哪项)。适合 CI 或新机器。
 - `--json`: 在 stdout 输出 NDJSON 事件流 (供编排器使用,配合 `-n`)。
 
 ### Provider 预设
@@ -149,7 +177,7 @@ AutoClaw 可对接任意 OpenAI 兼容端点。内置预设可自动填好 Base 
 ```bash
 autoclaw -P deepseek "检查磁盘使用情况并保存报告" -y -n
 ```
-可用预设：`openai`、`deepseek`、`moonshot` (Kimi)、`dashscope` (Qwen)、`zhipu` (GLM)、`openrouter`、`ollama` (本地)。模型仍可用 `-m` 或配置覆盖。未设置 `OPENAI_API_KEY` 时，会自动读取各家自己的环境变量 (如 `DEEPSEEK_API_KEY`、`MOONSHOT_API_KEY`、`DASHSCOPE_API_KEY`、`ZHIPU_API_KEY`、`OPENROUTER_API_KEY`)。
+可用预设：`openai`、`deepseek`、`moonshot` (Kimi)、`dashscope` (Qwen)、`zhipu` (GLM)、`ark` (火山方舟)、`siliconflow` (硅基流动)、`openrouter`、`ollama` (本地)。模型仍可用 `-m` 或配置覆盖。未设置 `OPENAI_API_KEY` 时，会自动读取各家自己的环境变量 (如 `DEEPSEEK_API_KEY`、`MOONSHOT_API_KEY`、`DASHSCOPE_API_KEY`、`ZHIPU_API_KEY`、`ARK_API_KEY`、`SILICONFLOW_API_KEY`、`OPENROUTER_API_KEY`)。
 
 ## 配置
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **`autoclaw doctor`**: headless self-diagnosis — config files, resolved provider/baseUrl/model, API key, a live connection test, resolved shell, registered tools, and playwright browser status; ✓/✗ output and an exit code (0 ready / 1 critical failure). `resolveRuntime` gained an interactive flag so doctor reports a missing key instead of prompting.
+- **Safety gate for destructive shell commands**: even with `--yes`, patterns like `rm -rf`, `rd/del /s`, `Remove-Item -Recurse -Force`, `format`/`diskpart`/`mkfs`, `dd of=`, block-device writes, `shutdown`/`reboot`, and `reg delete` are refused with a message the model can act on. `--allow-dangerous` is the explicit override. Protects unattended runs against destructive instructions reaching the shell (e.g. via prompt injection).
+- **Provider presets `ark` (Volcano Ark)** and **`siliconflow` (SiliconFlow)**, with `ARK_API_KEY` / `SILICONFLOW_API_KEY` env fallbacks.
+- **README recipes**: Linux cron and Windows Task Scheduler sweeps, manifest-internal pipelines, and `autoclaw doctor` for CI.
+
 ## 1.3.2 (2026-09-01)
 
 ### Added

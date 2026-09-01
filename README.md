@@ -130,6 +130,29 @@ Unattempted tasks are simply absent from the results file, so `--fail-fast` foll
 
 AutoClaw also keeps its own prompt lean: optional tools (web search, email, group notifications, image generation) only register once their credentials are configured, and in long loops older tool results in the model context are replaced by short excerpts.
 
+### Recipes
+
+Daily ops sweep on Linux (crontab):
+```cron
+0 9 * * * autoclaw batch /opt/ops/daily.jsonl -y -n --resume >> /var/log/autoclaw.log 2>&1
+```
+
+Scheduled sweep on Windows (Task Scheduler):
+```bash
+schtasks /create /tn "AutoClaw Daily" /tr "autoclaw batch C:\ops\daily.jsonl -y -n" /sc daily /st 09:00
+```
+
+Pipeline inside one manifest — each task writes files the next task reads:
+```jsonl
+{"id": "sweep", "task": "检查磁盘与关键服务状态,报告写入 report/sweep.md"}
+{"id": "notify", "task": "读取 report/sweep.md,用三句话总结后推送到飞书"}
+```
+
+Diagnostics on a fresh machine or in CI:
+```bash
+autoclaw doctor   # exit 0 = ready; exit 1 = what's missing is printed
+```
+
 ### Auto-Confirm (CI/CD)
 Automatically approve all tool executions (dangerous, use with caution or in sandboxes).
 ```bash
@@ -141,14 +164,18 @@ autoclaw "Refactor src/index.ts to use ES modules" -y
 - `-P, --provider <name>`: Use a provider preset (see [Providers](#providers)).
 - `-n, --no-interactive`: Exit after processing the initial query (Headless mode).
 - `-y, --yes`: Auto-confirm all tool executions (e.g., shell commands).
+- `--allow-dangerous`: Let `-y` run clearly destructive commands (rm -rf, format, shutdown, ...) that the built-in safety gate would block.
 - `--json`: Emit NDJSON events on stdout (for orchestrators; use with `-n`).
+
+### Diagnostics
+`autoclaw doctor` checks everything headlessly and prints ✓/✗ per item: config files, resolved provider/baseUrl/model, API key, a live connection test, resolved shell, registered tools, and playwright browser status. Exit `0` = ready, `1` = a critical item failed (the failing item is printed). Ideal for CI or a fresh machine.
 
 ### Providers
 AutoClaw works with any OpenAI-compatible endpoint. Built-in presets fill in the base URL and a default model for you:
 ```bash
 autoclaw -P deepseek "Check disk usage and save a report" -y -n
 ```
-Available presets: `openai`, `deepseek`, `moonshot` (Kimi), `dashscope` (Qwen), `zhipu` (GLM), `openrouter`, `ollama` (local). You can still override the model with `-m` or config. When `OPENAI_API_KEY` is not set, the API key is read from the provider's own env var (e.g. `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `ZHIPU_API_KEY`, `OPENROUTER_API_KEY`).
+Available presets: `openai`, `deepseek`, `moonshot` (Kimi), `dashscope` (Qwen), `zhipu` (GLM), `ark` (Volcano Ark), `siliconflow`, `openrouter`, `ollama` (local). You can still override the model with `-m` or config. When `OPENAI_API_KEY` is not set, the API key is read from the provider's own env var (e.g. `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `ZHIPU_API_KEY`, `ARK_API_KEY`, `SILICONFLOW_API_KEY`, `OPENROUTER_API_KEY`).
 
 ## Configuration
 

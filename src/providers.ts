@@ -39,6 +39,18 @@ export const PROVIDER_PRESETS: Record<string, ProviderPreset> = {
     defaultModel: 'glm-5',
     apiKeyEnv: 'ZHIPU_API_KEY'
   },
+  ark: {
+    label: 'Volcano Ark (Doubao/DeepSeek)',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    defaultModel: 'deepseek-v4-flash',
+    apiKeyEnv: 'ARK_API_KEY'
+  },
+  siliconflow: {
+    label: 'SiliconFlow',
+    baseUrl: 'https://api.siliconflow.cn/v1',
+    defaultModel: 'deepseek-ai/DeepSeek-V4',
+    apiKeyEnv: 'SILICONFLOW_API_KEY'
+  },
   openrouter: {
     label: 'OpenRouter',
     baseUrl: 'https://openrouter.ai/api/v1',

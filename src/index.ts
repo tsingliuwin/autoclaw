@@ -99,7 +99,7 @@ program
   .description('A lightweight AI agent CLI tool')
   .version(version)
   .option('-m, --model <model>', 'Model to use')
-  .option('-P, --provider <name>', 'Use a provider preset (openai, deepseek, moonshot, dashscope, zhipu, openrouter, ollama)')
+  .option('-P, --provider <name>', 'Use a provider preset (openai, deepseek, moonshot, dashscope, zhipu, ark, siliconflow, openrouter, ollama)')
   .option('-n, --no-interactive', 'Exit after processing the initial query (Headless mode)')
   .option('-y, --yes', 'Auto-confirm all tool executions (e.g., shell commands)')
   .option('--allow-dangerous', 'Let -y run clearly destructive commands (rm -rf, format, shutdown, ...) without the safety block')

@@ -20,7 +20,7 @@ export interface AgentUsage {
 }
 
 export interface AgentRunResult {
-  status: 'completed' | 'error' | 'max_steps';
+  status: 'completed' | 'error' | 'max_steps' | 'timeout';
   steps: number;
   error?: string;
   message?: string | null;
@@ -128,6 +128,15 @@ RULES OF ENGAGEMENT:
     this.messages.push({ role: "user", content: userInput });
 
     const maxSteps = Number(this.config?.maxSteps || process.env.AUTOCLOW_MAX_STEPS || DEFAULT_MAX_STEPS);
+    const taskTimeoutMs = Number(this.config?.taskTimeoutMs || process.env.AUTOCLOW_TASK_TIMEOUT_MS || 0);
+    const deadline = taskTimeoutMs > 0 ? Date.now() + taskTimeoutMs : Number.POSITIVE_INFINITY;
+    const abortController = new AbortController();
+    const abortTimer = taskTimeoutMs > 0
+      ? setTimeout(
+          () => abortController.abort(new Error(`task wall-clock timeout after ${taskTimeoutMs}ms`)),
+          taskTimeoutMs
+        )
+      : null;
     const startedAt = Date.now();
     let active = true;
     let step = 0;
@@ -147,6 +156,13 @@ RULES OF ENGAGEMENT:
         }
         break;
       }
+      if (Date.now() > deadline) {
+        status = 'timeout';
+        if (!this.jsonMode) {
+          console.log(chalk.yellow(`\n[TaskTimeout] Wall-clock limit of ${taskTimeoutMs}ms reached; stopping.`));
+        }
+        break;
+      }
       this.trimOldToolResults();
       step++;
       const spinner: any = this.jsonMode
@@ -162,13 +178,13 @@ RULES OF ENGAGEMENT:
           async () => this.client.chat.completions.create({
               model: this.model,
               messages: this.messages,
-              tools: getToolDefinitions() as any,
+              tools: getToolDefinitions(this.config) as any,
               tool_choice: "auto",
               stream: true,
               // Not every OpenAI-compatible provider accepts stream_options;
               // usage tracking is therefore opt-in only.
               ...(this.config?.includeUsage ? { stream_options: { include_usage: true } } : {})
-          }) as unknown as AsyncIterable<any>,
+          }, { signal: abortController.signal }) as unknown as AsyncIterable<any>,
           {
             onRetry: (err, nextAttempt, delayMs) => {
               spinner.text = `API error (${err.message}); retrying in ${Math.round(delayMs / 1000)}s (attempt ${nextAttempt})...`;
@@ -178,8 +194,13 @@ RULES OF ENGAGEMENT:
       } catch (error: any) {
         spinner.fail('Error during processing');
         if (!this.jsonMode) console.error(chalk.red(error.message));
-        status = 'error';
-        errorMessage = error.message;
+        if (abortController.signal.aborted) {
+          status = 'timeout';
+          errorMessage = `task wall-clock timeout after ${taskTimeoutMs}ms`;
+        } else {
+          status = 'error';
+          errorMessage = error.message;
+        }
         active = false;
         break;
       }
@@ -258,8 +279,13 @@ RULES OF ENGAGEMENT:
       } catch (error: any) {
         spinner.fail('Error during processing');
         if (!this.jsonMode) console.error(chalk.red(error.message));
-        status = 'error';
-        errorMessage = error.message;
+        if (abortController.signal.aborted) {
+          status = 'timeout';
+          errorMessage = `task wall-clock timeout after ${taskTimeoutMs}ms`;
+        } else {
+          status = 'error';
+          errorMessage = error.message;
+        }
         active = false;
         break;
       }
@@ -376,6 +402,8 @@ RULES OF ENGAGEMENT:
         this.emitEvent({ event: 'usage', step, ...totalUsage });
       }
     }
+
+    if (abortTimer) clearTimeout(abortTimer);
 
     const result: AgentRunResult = {
       status,

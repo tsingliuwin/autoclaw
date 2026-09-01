@@ -57,6 +57,7 @@ interface AppConfig {
   jsonMode?: boolean;
   includeUsage?: boolean;
   maxSteps?: number;
+  taskTimeoutMs?: number;
   feishuWebhook?: string;
   feishuKeyword?: string;
   dingtalkWebhook?: string;
@@ -665,7 +666,8 @@ async function runBatchCommand(manifestPath: string, globalOptions: any, cmdOpti
         ...fullConfig,
         // The results file is the machine-readable contract in batch mode.
         jsonMode: false,
-        maxSteps: entry.maxSteps ?? fullConfig.maxSteps
+        maxSteps: entry.maxSteps ?? fullConfig.maxSteps,
+        taskTimeoutMs: entry.taskTimeoutMs ?? fullConfig.taskTimeoutMs
       };
       const agent = new Agent(apiKey, taskBaseURL, taskModel, taskConfig);
       const start = Date.now();
@@ -727,9 +729,11 @@ async function runChat(queryParts: string[], options: any) {
     const result = await agent.chat(initialQuery);
 
     // Headless mode exit — the exit code is the orchestrator-facing outcome:
-    // 0 completed, 1 hard failure, 2 step cap reached (task unfinished).
+    // 0 completed, 1 hard failure, 2 unfinished (step cap or wall-clock timeout).
     if (!options.interactive) {
-      process.exit(result.status === 'completed' ? 0 : result.status === 'max_steps' ? 2 : 1);
+      process.exit(
+        result.status === 'completed' ? 0 : result.status === 'max_steps' || result.status === 'timeout' ? 2 : 1
+      );
     }
   }
 

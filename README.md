@@ -194,6 +194,7 @@ AutoClaw uses a hierarchical configuration system.
 - `model`: Default model to use.
 - `maxSteps`: Max LLM turns per task before the agent stops (default: `25`).
 - `shellTimeout`: Shell command timeout in milliseconds (default: `120000`).
+- `taskTimeoutMs`: Whole-task wall-clock timeout in milliseconds (off by default; aborts in-flight API calls and stops with `timeout` status).
 - `shell`: Force a shell for `execute_shell_command` (`bash`, `powershell`, `cmd`, `sh`; default: auto-detect — Git Bash > PowerShell > cmd on Windows).
 - `tavilyApiKey`: API Key for Tavily Web Search.
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
@@ -214,6 +215,7 @@ Create a file at `.autoclaw/setting.json`:
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: main LLM settings.
 - `AUTOCLOW_PROVIDER`: provider preset used when `-P` is not passed.
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: reliability limits (max LLM turns per task; shell timeout in ms).
+- `AUTOCLOW_TASK_TIMEOUT_MS`: whole-task wall-clock timeout in ms.
 - `AUTOCLOW_SHELL`: force the shell for shell commands (`bash`, `powershell`, `cmd`, `sh`).
 - `AUTOCLOW_INCLUDE_USAGE`: set to `1`/`true` to request token usage from the API (opt-in).
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: tool credentials as an alternative to setup.

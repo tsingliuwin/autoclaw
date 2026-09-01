@@ -8,6 +8,7 @@ export interface ManifestEntry {
   id: string;
   task: string;
   maxSteps?: number;
+  taskTimeoutMs?: number;
   model?: string;
   provider?: string;
   error?: string;
@@ -15,7 +16,7 @@ export interface ManifestEntry {
 
 export interface BatchResult {
   id: string;
-  status: 'completed' | 'error' | 'max_steps';
+  status: 'completed' | 'error' | 'max_steps' | 'timeout';
   steps?: number;
   message?: string | null;
   error?: string;
@@ -59,6 +60,7 @@ export function parseManifest(raw: string): ManifestEntry[] {
 
       const entry: ManifestEntry = { lineNo, id, task: parsed.task.trim() };
       if (typeof parsed.maxSteps === 'number' && parsed.maxSteps > 0) entry.maxSteps = parsed.maxSteps;
+      if (typeof parsed.taskTimeoutMs === 'number' && parsed.taskTimeoutMs > 0) entry.taskTimeoutMs = parsed.taskTimeoutMs;
       if (typeof parsed.model === 'string' && parsed.model.trim()) entry.model = parsed.model.trim();
       if (typeof parsed.provider === 'string' && parsed.provider.trim()) entry.provider = parsed.provider.trim();
       return entry;

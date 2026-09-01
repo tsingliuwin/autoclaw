@@ -118,7 +118,8 @@ describe('Agent.chat', () => {
         tools: [{ type: 'function', function: { name: 'read_file' } }],
         tool_choice: 'auto',
         stream: true
-      })
+      }),
+      expect.objectContaining({ signal: expect.anything() })
     );
     expect(mocks.executeToolHandlerMock).not.toHaveBeenCalled();
     expect(mocks.spinnerFailMock).not.toHaveBeenCalled();
@@ -389,7 +390,8 @@ describe('Agent.chat', () => {
     const result = await agent.chat('count tokens');
 
     expect(mocks.createMock).toHaveBeenCalledWith(
-      expect.objectContaining({ stream_options: { include_usage: true } })
+      expect.objectContaining({ stream_options: { include_usage: true } }),
+      expect.objectContaining({ signal: expect.anything() })
     );
     expect(result.usage).toEqual({ prompt_tokens: 120, completion_tokens: 30, total_tokens: 150 });
     expect(result.status).toBe('completed');
@@ -459,6 +461,33 @@ describe('Agent.chat', () => {
     expect(mine).toMatchObject({ status: 'completed', model: 'test-model', steps: 1 });
     expect(typeof mine.time).toBe('string');
     expect(typeof mine.durationMs).toBe('number');
+  });
+
+  it('stops with timeout status when the wall-clock budget is exceeded', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock.mockImplementation(async () =>
+      streamFrom([
+        {
+          tool_calls: [
+            { index: 0, id: `call-${Math.random()}`, type: 'function', function: { name: 'read_file', arguments: '{}' } }
+          ]
+        }
+      ])
+    );
+    // one slow tool call is enough to burn the wall-clock budget
+    mocks.executeToolHandlerMock.mockImplementation(
+      async () => new Promise(resolve => setTimeout(() => resolve('x'.repeat(2000)), 120))
+    );
+
+    const agent = new Agent('test-key', undefined, 'test-model', { taskTimeoutMs: 60, maxSteps: 100 });
+    const result = await agent.chat('slow task');
+
+    expect(result.status).toBe('timeout');
+    expect(mocks.createMock).toHaveBeenCalledTimes(1);
+    expect(result.error).toBeUndefined();
   });
 });
 

@@ -196,6 +196,7 @@ AutoClaw 使用层级配置系统。
 - `model`: 默认使用的模型。
 - `maxSteps`: 单任务最大 LLM 轮数，超出后自动停止 (默认: `25`)。
 - `shellTimeout`: Shell 命令超时时间（毫秒）(默认: `120000`)。
+- `taskTimeoutMs`: 单任务整体墙钟超时（毫秒，默认关闭；会中断进行中的 API 调用并以 `timeout` 状态停止）。
 - `shell`: 强制 `execute_shell_command` 使用的 shell (`bash`、`powershell`、`cmd`、`sh`；默认自动检测——Windows 上优先 Git Bash > PowerShell > cmd)。
 - `tavilyApiKey`: Tavily 网页搜索的 API 密钥。
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP 邮件设置。
@@ -216,6 +217,7 @@ AutoClaw 使用层级配置系统。
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: 主模型设置。
 - `AUTOCLOW_PROVIDER`: 未传 `-P` 时使用的 provider 预设。
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: 稳定性限制（单任务最大轮数；Shell 超时毫秒数）。
+- `AUTOCLOW_TASK_TIMEOUT_MS`: 单任务整体墙钟超时（毫秒）。
 - `AUTOCLOW_SHELL`: 强制 shell 命令使用的 shell (`bash`、`powershell`、`cmd`、`sh`)。
 - `AUTOCLOW_INCLUDE_USAGE`: 设为 `1`/`true` 时向 API 请求 token 用量（可选开启）。
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: 工具凭据，可作为 setup 的替代方式。

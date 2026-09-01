@@ -8,6 +8,7 @@ import { parseManifest, runBatch } from './batch.js';
 import type { BatchResult, ManifestEntry, ResumeState } from './batch.js';
 import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
 import { fetchModelIds, normalizeBaseUrl, testConnection } from './setup.js';
+import { collectDoctorChecks } from './doctor.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -128,6 +129,35 @@ program
   .action(async (manifest, cmdOptions) => {
     const options = program.opts();
     await runBatchCommand(manifest, options, cmdOptions);
+  });
+
+program
+  .command('doctor')
+  .description('Diagnose configuration and environment (headless)')
+  .action(async () => {
+    const options = program.opts();
+    const { apiKey, baseURL, model, fullConfig } = await resolveRuntime(options, { interactive: false });
+    const providerName = options.provider || process.env.AUTOCLOW_PROVIDER || fullConfig.provider;
+    console.log(chalk.bold.cyan('AutoClaw Doctor 🦞\n'));
+    const checks = await collectDoctorChecks({
+      apiKey,
+      baseUrl: baseURL,
+      model,
+      providerLabel: providerName || 'custom',
+      globalFile: GLOBAL_CONFIG_FILE,
+      projectFile: LOCAL_CONFIG_FILE,
+      globalExists: fs.existsSync(GLOBAL_CONFIG_FILE),
+      projectExists: fs.existsSync(LOCAL_CONFIG_FILE),
+      toolConfig: fullConfig
+    });
+    for (const c of checks) {
+      const mark = c.ok ? chalk.green('✓') : c.critical ? chalk.red('✗') : chalk.yellow('!');
+      console.log(`${mark} ${c.name.padEnd(20)} ${chalk.dim(c.detail)}`);
+    }
+    const failed = checks.filter(c => c.critical && !c.ok);
+    if (failed.length === 0) console.log(chalk.green('\nAll critical checks passed.'));
+    else console.log(chalk.red(`\n${failed.length} critical check(s) failed.`));
+    process.exit(failed.length === 0 ? 0 : 1);
   });
 
 program.parse(process.argv);
@@ -486,7 +516,9 @@ async function runSetup(options: any = {}) {
 
 // Shared by `chat` and `batch`: resolve credentials, endpoints and runtime
 // flags from CLI args > env > project config > global config > provider preset.
-async function resolveRuntime(options: any): Promise<{ apiKey: string; baseURL?: string; model: string; fullConfig: AppConfig }> {
+// With interactive: false (doctor), a missing key resolves to '' instead of
+// prompting, so the caller can report it.
+async function resolveRuntime(options: any, opts: { interactive?: boolean } = {}): Promise<{ apiKey: string; baseURL?: string; model: string; fullConfig: AppConfig }> {
   // 1. Load Global JSON
   const globalConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
 
@@ -536,6 +568,9 @@ async function resolveRuntime(options: any): Promise<{ apiKey: string; baseURL?:
   if (process.env.WECOM_KEYWORD) fullConfig.wecomKeyword = process.env.WECOM_KEYWORD;
 
   if (!apiKey) {
+    if (opts.interactive === false) {
+      return { apiKey: '', baseURL, model, fullConfig };
+    }
     console.log(chalk.yellow("API Key not found."));
     const { doSetup } = await inquirer.prompt([
       {

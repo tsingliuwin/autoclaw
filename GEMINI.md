@@ -20,9 +20,12 @@ It serves as the ideal "runtime" for executing LLM-driven tasks within Docker co
 
 ## Directory Structure
 - `src/`: Source code
-  - `index.ts`: CLI entry point and main loop.
-  - `agent.ts`: Agent class handling LLM interaction and tool loop.
-  - `tools.ts`: Implementation of tools (Shell execution, File I/O).
+  - `index.ts`: CLI entry point, config resolution and main loop.
+  - `agent.ts`: Agent class handling LLM streaming, the tool loop, retries and step caps.
+  - `providers.ts`: Provider presets (OpenAI-compatible endpoints as pure data).
+  - `truncate.ts`, `retry.ts`: Tool-output truncation and API retry helpers.
+  - `tools/`: Tool modules (Shell, files, time, search, browser, screenshot, email, notify, image, prompt optimizer), each exporting a `ToolModule` registered in `tools/index.ts`.
+  - `*.test.ts`: Vitest unit tests, run with `npm test`.
 - `dist/`: Compiled JavaScript files.
 
 ## Getting Started
@@ -39,6 +42,10 @@ It serves as the ideal "runtime" for executing LLM-driven tasks within Docker co
 2.  Build the project:
     ```bash
     npm run build
+    ```
+3.  Run tests:
+    ```bash
+    npm test
     ```
 
 ### Installation (User)
@@ -79,5 +86,7 @@ autoclaw
 ## Features
 - **Natural Language Command Execution**: "List all markdown files in this folder."
 - **File Management**: "Create a new file called test.txt with 'Hello World'."
-- **Safety**: All shell commands require user confirmation before execution.
+- **Providers**: Built-in presets for DeepSeek, Kimi, Qwen, GLM, OpenRouter and Ollama via `-P`.
+- **Safety**: Shell commands require user confirmation unless `--yes` is passed; without an interactive terminal they are denied instead of hanging.
+- **Reliability**: Max-step cap, API retries with backoff, shell timeouts and tool-output truncation.
 - **Context Aware**: Automatically detects OS and environment.

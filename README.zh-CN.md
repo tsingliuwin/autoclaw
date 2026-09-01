@@ -31,11 +31,14 @@ AutoClaw 是一款针对 **“无界面系统” (Headless Systems)** 的高稳�
 
 ## 特性
 
-- 📜 **无头执行 (Headless Execution)**: 真正的无头模式，无需浏览器或图形化界面。
+- 📜 **无头执行 (Headless Execution)**: 无需图形界面，纯终端运行。核心流程仅依赖 Shell 与文件操作；可选的网页工具在无头 Chromium 中运行。
 - 🤖 **非交互模式**: 支持自动化标志（`-y`, `--no-interactive`），完美适配零干预的自动化流程。
-- 📂 **全方位控制 (Universal Control)**: 从基础的文件 I/O 到复杂的系统管理与代码重构。
-- 🧠 **上下文感知 (Context Aware)**: 自动识别操作系统与容器环境，并提供精确的系统时间以处理相对时间查询。
+- 📂 **全方位控制 (Universal Control)**: 从基础的文件 I/O 到复杂的系统管理。
+- 🛡️ **防失控保护**: 单任务步数上限、API 指数退避重试、Shell 命令超时、工具输出截断，保证模型上下文不被撑爆。
+- 🧠 **上下文感知 (Context Aware)**: 提供精确的操作系统与时间上下文，正确处理"今天"、"下周一"等相对时间。
 - 🌐 **网页搜索**: 集成 Tavily，支持实时信息检索。
+- 🌍 **网页阅读与截图**: 提取文章正文、截取页面图片（需先执行 `npx playwright install chromium`）。
+- 🎨 **图像生成**: 通过任意 OpenAI 兼容的图像接口生成图片（兼容 DALL-E）。
 - 🕒 **时间精准**: 内置工具获取精确系统日期和时间，确保正确的时间上下文。
 - 📧 **通讯能力**: 自动发送电子邮件并将通知推送至聊天群组。
 
@@ -44,7 +47,8 @@ AutoClaw 是一款针对 **“无界面系统” (Headless Systems)** 的高稳�
 - **语言**: TypeScript
 - **框架**: Commander.js
 - **UI**: Inquirer (交互), Chalk (样式), Ora (加载动画)
-- **AI**: OpenAI SDK (兼容 DeepSeek, LocalLLM 等)
+- **AI**: OpenAI SDK（任意 OpenAI 兼容端点：DeepSeek、Kimi、Qwen、GLM、Ollama 等）
+- **网页工具**: Playwright（无头 Chromium，用于 `read_website` / `take_screenshot`）
 
 ## 安装
 
@@ -92,6 +96,7 @@ npm install -g autoclaw
 autoclaw
 > 列出 src 文件夹中所有的 TypeScript 文件。
 ```
+交互命令：`exit` / `quit` 退出；`/view` 用分页器查看上一次工具的完整输出——超过 20 行的工具输出会在屏幕上折叠，并保存到 `~/.autoclaw/output/`。
 
 ### 无头模式 (一次性任务)
 执行单个指令后立即退出。
@@ -106,24 +111,35 @@ autoclaw "将 src/index.ts 重构为使用 ES 模块" -y
 ```
 
 ### CLI 选项
-- `-m, --model <model>`: 指定 LLM 模型 (默认: `gpt-4o`)。
+- `-m, --model <model>`: 指定 LLM 模型 (默认: `gpt-5.6`)。
+- `-P, --provider <name>`: 使用 provider 预设 (见 [Provider 预设](#provider-预设))。
 - `-n, --no-interactive`: 处理完初始查询后退出 (无头模式)。
 - `-y, --yes`: 自动确认所有工具执行 (例如 Shell 命令)。
+
+### Provider 预设
+AutoClaw 可对接任意 OpenAI 兼容端点。内置预设可自动填好 Base URL 和默认模型：
+```bash
+autoclaw -P deepseek "检查磁盘使用情况并保存报告" -y -n
+```
+可用预设：`openai`、`deepseek`、`moonshot` (Kimi)、`dashscope` (Qwen)、`zhipu` (GLM)、`openrouter`、`ollama` (本地)。模型仍可用 `-m` 或配置覆盖。未设置 `OPENAI_API_KEY` 时，会自动读取各家自己的环境变量 (如 `DEEPSEEK_API_KEY`、`MOONSHOT_API_KEY`、`DASHSCOPE_API_KEY`、`ZHIPU_API_KEY`、`OPENROUTER_API_KEY`)。
 
 ## 配置
 
 AutoClaw 使用层级配置系统。
 
 **优先级排序 (从高到低):**
-1.  **CLI 参数**: (例如 `-m gpt-4o`)
+1.  **CLI 参数**: (例如 `-m gpt-5.6`)
 2.  **环境变量**: (`OPENAI_API_KEY`, `.env` 文件)
 3.  **项目配置**: (当前目录下的 `./.autoclaw/setting.json`)
 4.  **全局配置**: (`~/.autoclaw/setting.json`)
 
 ### 支持的配置键 (JSON)
+- `provider`: Provider 预设名 (如 `deepseek`)。
 - `apiKey`: 您的 OpenAI API 密钥。
 - `baseUrl`: 自定义 API 基础地址 (例如 DeepSeek 或本地 LLM)。
 - `model`: 默认使用的模型。
+- `maxSteps`: 单任务最大 LLM 轮数，超出后自动停止 (默认: `25`)。
+- `shellTimeout`: Shell 命令超时时间（毫秒）(默认: `120000`)。
 - `tavilyApiKey`: Tavily 网页搜索的 API 密钥。
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP 邮件设置。
 - `feishuWebhook`, `dingtalkWebhook`, `wecomWebhook`: 通知钩子地址。
@@ -132,12 +148,18 @@ AutoClaw 使用层级配置系统。
 在 `.autoclaw/setting.json` 创建文件：
 ```json
 {
-  "model": "gpt-3.5-turbo",
+  "model": "gpt-5.6",
   "baseUrl": "https://api.deepseek.com/v1"
 }
 ```
 
 > **⚠️ 安全警告**: 如果您在 `.autoclaw/setting.json` 中存储了 `apiKey` 或机密信息，请务必将 `.autoclaw/` 添加到您的 `.gitignore` 文件中，以防泄露！
+
+### 环境变量
+- `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: 主模型设置。
+- `AUTOCLOW_PROVIDER`: 未传 `-P` 时使用的 provider 预设。
+- `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: 稳定性限制（单任务最大轮数；Shell 超时毫秒数）。
+- `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: 工具凭据，可作为 setup 的替代方式。
 
 ## 集成功能
 
@@ -158,6 +180,14 @@ AutoClaw 使用层级配置系统。
 - **示例**: "今天是几号？" 或 "提醒我下周一检查日志。"
 
 ## Docker 支持
+
+### 构建与运行
+仓库自带多阶段构建的 `Dockerfile`（node:22-alpine，跳过浏览器下载保持镜像苗条）。容器内直接运行无头一次性任务，配合目录挂载操作当前目录：
+```bash
+docker build -t autoclaw .
+docker run --rm -v "$PWD":/workspace -w /workspace -e OPENAI_API_KEY=sk-... autoclaw "检查磁盘使用情况并保存报告" -y -n
+```
+注意：默认镜像中未内置浏览器，基于浏览器的工具（`read_website` / `take_screenshot`）不可用——它们会返回友好的安装提示，而不是报错崩溃。
 
 ### 截图中的中文显示问题
 在 Docker 容器（尤其是 Alpine 或 Debian Slim）中运行时，网页截图中的中文可能会显示为方块（"豆腐块"）。表情符号（如 🔥）也可能显示为方块。

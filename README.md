@@ -30,11 +30,14 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 
 ## Features
 
-- 📜 **Headless Execution**: No browsers, no GUIs. Pure terminal efficiency.
+- 📜 **Headless Execution**: No GUI required — pure terminal efficiency. Core operation is shell + file I/O; the optional web tools run in headless Chromium.
 - 🤖 **Non-Interactive Mode**: Intelligent flag handling (`-y`, `--no-interactive`) for zero-touch automation.
 - 📂 **Universal Control**: From simple file I/O to complex system administration.
-- 🧠 **Context Aware**: Detects container environments and provides accurate system time for relative date queries.
+- 🛡️ **Runaway Protection**: Max-step cap per task, API retries with exponential backoff, shell command timeouts, and tool output truncation to keep the model context bounded.
+- 🧠 **Context Aware**: Provides accurate OS, system and time context so relative dates ("today", "next Monday") are handled correctly.
 - 🌐 **Web Search**: Integrated with Tavily for real-time information retrieval.
+- 🌍 **Web Reading & Screenshots**: Extract article content and capture page screenshots (requires `npx playwright install chromium`).
+- 🎨 **Image Generation**: DALL-E compatible image generation via any OpenAI-compatible images API.
 - 🕒 **Time Accuracy**: Built-in tool to get precise system date and time for correct temporal context.
 - 📧 **Communication**: Send emails and push notifications to chat groups automatically.
 
@@ -43,7 +46,8 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - **Language**: TypeScript
 - **Framework**: Commander.js
 - **UI**: Inquirer (interactivity), Chalk (styling), Ora (spinners)
-- **AI**: OpenAI SDK (Compatible with DeepSeek, LocalLLM, etc.)
+- **AI**: OpenAI SDK (any OpenAI-compatible endpoint: DeepSeek, Kimi, Qwen, GLM, Ollama, …)
+- **Web tools**: Playwright (headless Chromium for `read_website` / `take_screenshot`)
 
 ## Installation
 
@@ -91,6 +95,7 @@ Simply run `autoclaw` to enter the chat loop.
 autoclaw
 > List all TypeScript files in the src folder.
 ```
+Interactive commands: `exit` / `quit` to leave, and `/view` to open the full output of the last tool result in a pager — tool output longer than 20 lines is folded on screen and saved to `~/.autoclaw/output/`.
 
 ### Headless Mode (One-Shot)
 Run a single command and exit.
@@ -149,6 +154,12 @@ Create a file at `.autoclaw/setting.json`:
 
 > **⚠️ Security Warning**: If you store your `apiKey` or secrets in `.autoclaw/setting.json`, make sure to add `.autoclaw/` to your `.gitignore` file to prevent leaking secrets!
 
+### Environment Variables
+- `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: main LLM settings.
+- `AUTOCLOW_PROVIDER`: provider preset used when `-P` is not passed.
+- `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: reliability limits (max LLM turns per task; shell timeout in ms).
+- `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: tool credentials as an alternative to setup.
+
 ## Integrations
 
 ### Web Search (Tavily)
@@ -168,6 +179,14 @@ Built-in utility to provide the agent with the current system time, ensuring acc
 - **Usage**: "What's the date today?" or "Remind me to check the logs next Monday."
 
 ## Docker Support
+
+### Build & Run
+The repository ships a multi-stage `Dockerfile` (node:22-alpine, browser downloads skipped to keep the image slim). The container runs headless one-shot tasks against the mounted directory:
+```bash
+docker build -t autoclaw .
+docker run --rm -v "$PWD":/workspace -w /workspace -e OPENAI_API_KEY=sk-... autoclaw "Check disk usage and save a report" -y -n
+```
+Note: browser-based tools (`read_website` / `take_screenshot`) are not functional in the default image since browsers are not bundled — they return a friendly install hint instead.
 
 ### Chinese Font Issues in Screenshots
 When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts. Emojis (e.g., 🔥) may also appear as squares.

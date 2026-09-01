@@ -22,8 +22,8 @@ Thank you for your interest in contributing to AutoClaw! We welcome contribution
 ## Development Guidelines
 
 - **Code Style**: We use TypeScript. Please follow the existing code style (formatting, variable naming).
-- **Testing**: Before submitting a PR, please run `npm run build` to ensure there are no compilation errors.
-- **Commit Messages**: Write clear, descriptive commit messages. We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `feat: add new tool`, `fix: correct typo in README`).
+- **Testing**: Before submitting a PR, please run `npm test` (Vitest) and `npm run build` to make sure the test suite passes and the code compiles.
+- **Commit Messages**: Write clear, descriptive commit messages. Conventional Commits style (e.g., `feat: add new tool`, `fix: correct typo in README`) is appreciated but not enforced.
 
 ## Submitting a Pull Request
 

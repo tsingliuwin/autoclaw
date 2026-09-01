@@ -27,6 +27,7 @@ Guard these properties when making changes: no new heavy dependencies, no intera
   - `index.ts`: CLI entry point, config resolution and main loop.
   - `agent.ts`: Agent class handling LLM streaming, the tool loop, retries and step caps.
   - `providers.ts`: Provider presets (OpenAI-compatible endpoints as pure data).
+  - `shell.ts`: Shell resolution (Git Bash/PowerShell/cmd/sh), spawn-based execution with process-tree kill and UTF-8/GBK decoding.
   - `batch.ts`: Batch execution over JSONL task manifests (manifest parsing + per-task orchestration).
   - `truncate.ts`, `retry.ts`: Tool-output truncation and API retry helpers.
   - `tools/`: Tool modules (Shell, files, time, search, browser, screenshot, email, notify, image, prompt optimizer), each exporting a `ToolModule` registered in `tools/index.ts`.

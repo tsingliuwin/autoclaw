@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseManifest, runBatch, type ManifestEntry } from './batch.js';
+import { parseManifest, runBatch, type BatchResult, type ManifestEntry } from './batch.js';
 
 describe('parseManifest', () => {
   it('parses tasks and falls back to line-number ids', () => {
@@ -86,5 +86,54 @@ describe('runBatch', () => {
     expect(onResult).toHaveBeenCalledTimes(3);
     expect(onResult.mock.calls[2][2]).toBe(3);
     expect(onResult.mock.calls[2][3]).toBe(3);
+  });
+
+  it('resume skips already-completed tasks without executing them', async () => {
+    const execute = vi.fn(async (e: ManifestEntry) => ({ id: e.id, status: 'completed' as const, durationMs: 1 }));
+    const previousById = new Map<string, BatchResult>([
+      ['a', { id: 'a', status: 'completed', durationMs: 5 }]
+    ]);
+
+    const outcome = await runBatch(entries, execute, {
+      resume: { completedIds: new Set(['a']), previousById }
+    });
+
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(outcome.skipped).toBe(1);
+    expect(outcome.completed).toBe(3);
+    expect(outcome.failed).toBe(0);
+    expect(outcome.results[0]).toMatchObject({ id: 'a', status: 'completed', durationMs: 5 });
+    expect(outcome.results.map(r => r.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('runs tasks concurrently up to the limit', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const execute = vi.fn(async (e: ManifestEntry) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      inFlight--;
+      return { id: e.id, status: 'completed' as const, durationMs: 1 };
+    });
+
+    const outcome = await runBatch(entries, execute, { concurrency: 3 });
+
+    expect(peak).toBe(3);
+    expect(outcome.completed).toBe(3);
+    expect(outcome.failed).toBe(0);
+    expect(outcome.results).toHaveLength(3);
+  });
+
+  it('fail-fast with concurrency stops scheduling new tasks', async () => {
+    const execute = vi.fn(async (e: ManifestEntry) => {
+      if (e.id === 'a') return { id: e.id, status: 'error' as const, error: 'x', durationMs: 1 };
+      return { id: e.id, status: 'completed' as const, durationMs: 1 };
+    });
+
+    const outcome = await runBatch(entries, execute, { concurrency: 3, failFast: true });
+
+    expect(outcome.failed).toBe(1);
+    expect(outcome.results[0]).toMatchObject({ id: 'a', status: 'error' });
   });
 });

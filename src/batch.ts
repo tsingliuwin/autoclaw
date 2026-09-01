@@ -27,6 +27,7 @@ export interface BatchOutcome {
   results: BatchResult[];
   completed: number;
   failed: number;
+  skipped: number;
 }
 
 // Blank lines and lines starting with '#' are skipped. Malformed lines are
@@ -65,8 +66,15 @@ export function parseManifest(raw: string): ManifestEntry[] {
     .filter((entry): entry is ManifestEntry => entry !== null);
 }
 
+export interface ResumeState {
+  completedIds: Set<string>;
+  previousById: Map<string, BatchResult>;
+}
+
 export interface RunBatchOptions {
   failFast?: boolean;
+  concurrency?: number;
+  resume?: ResumeState;
   onResult?: (entry: ManifestEntry, result: BatchResult, done: number, total: number) => void;
 }
 
@@ -79,11 +87,20 @@ export async function runBatch(
   const results: BatchResult[] = [];
   let completed = 0;
   let failed = 0;
+  let skipped = 0;
+  let stopped = false;
+  let done = 0;
 
-  for (const entry of entries) {
+  const runEntry = async (i: number): Promise<void> => {
+    const entry = entries[i];
     let result: BatchResult;
     if (entry.error) {
       result = { id: entry.id, status: 'error', error: `Manifest line ${entry.lineNo}: ${entry.error}`, durationMs: 0 };
+    } else if (options.resume?.completedIds.has(entry.id)) {
+      result = options.resume.previousById.get(entry.id) ?? {
+        id: entry.id, status: 'error', error: 'missing previous result', durationMs: 0
+      };
+      skipped++;
     } else {
       try {
         result = await execute(entry);
@@ -95,10 +112,20 @@ export async function runBatch(
     if (result.status === 'completed') completed++;
     else failed++;
     results.push(result);
-    options.onResult?.(entry, result, results.length, total);
+    done++;
+    options.onResult?.(entry, result, done, total);
+    if (options.failFast && result.status !== 'completed') stopped = true;
+  };
 
-    if (options.failFast && result.status !== 'completed') break;
-  }
+  const concurrency = Math.max(1, Math.min(options.concurrency ?? 1, total || 1));
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < total && !stopped) {
+      const i = next++;
+      await runEntry(i);
+    }
+  };
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
-  return { results, completed, failed };
+  return { results, completed, failed, skipped };
 }

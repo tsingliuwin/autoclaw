@@ -122,6 +122,15 @@ autoclaw batch tasks.jsonl -o out.jsonl --fail-fast
 
 单个任务失败不会中断批次（需要中断用 `--fail-fast`）。全部完成时进程退出 `0`，否则 `1`，cron 和 K8s Job 由此感知批次成败。任务输出保持人类可读——结果文件才是机器可读契约，含每个任务的 `status`、`steps`、`message`、`error`、`usage`。
 
+长批次可以中途停、从断点继续，也可以本地并行：
+```bash
+autoclaw batch big.jsonl -y --resume        # 跳过结果文件中已完成的任务
+autoclaw batch big.jsonl -y -c 4            # 最多 4 个任务并行
+```
+未执行的任务不会出现在结果文件里，所以 `--fail-fast` 之后接 `--resume` 就是天然的重试循环。
+
+AutoClaw 同时会自动给提示词瘦身：可选工具（网页搜索、邮件、群通知、图像生成）只在凭据配置后才会注册进工具定义；长循环中较早的工具结果会被替换为短摘要。
+
 ### 自动确认 (CI/CD)
 自动批准所有工具执行（危险操作，请谨慎使用或在沙箱环境下运行）。
 ```bash
@@ -159,6 +168,7 @@ AutoClaw 使用层级配置系统。
 - `model`: 默认使用的模型。
 - `maxSteps`: 单任务最大 LLM 轮数，超出后自动停止 (默认: `25`)。
 - `shellTimeout`: Shell 命令超时时间（毫秒）(默认: `120000`)。
+- `shell`: 强制 `execute_shell_command` 使用的 shell (`bash`、`powershell`、`cmd`、`sh`；默认自动检测——Windows 上优先 Git Bash > PowerShell > cmd)。
 - `tavilyApiKey`: Tavily 网页搜索的 API 密钥。
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP 邮件设置。
 - `feishuWebhook`, `dingtalkWebhook`, `wecomWebhook`: 通知钩子地址。
@@ -178,6 +188,7 @@ AutoClaw 使用层级配置系统。
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: 主模型设置。
 - `AUTOCLOW_PROVIDER`: 未传 `-P` 时使用的 provider 预设。
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: 稳定性限制（单任务最大轮数；Shell 超时毫秒数）。
+- `AUTOCLOW_SHELL`: 强制 shell 命令使用的 shell (`bash`、`powershell`、`cmd`、`sh`)。
 - `AUTOCLOW_INCLUDE_USAGE`: 设为 `1`/`true` 时向 API 请求 token 用量（可选开启）。
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: 工具凭据，可作为 setup 的替代方式。
 

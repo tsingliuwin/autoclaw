@@ -121,6 +121,15 @@ Manifest lines are `{"id": "...", "task": "..."}` — `id` is optional (defaults
 
 One failing task does not stop the batch (use `--fail-fast` for that). The process exits `0` when every task completed, `1` otherwise, so cron and K8s Jobs can detect bad batches. Task output stays human-readable on stdout — the results file is the machine-readable contract, with `status`, `steps`, `message`, `error` and `usage` per task.
 
+Long batches can stop and pick up where they left off, and can use local parallelism:
+```bash
+autoclaw batch big.jsonl -y --resume        # skip tasks already completed in the results file
+autoclaw batch big.jsonl -y -c 4            # run up to 4 tasks in parallel
+```
+Unattempted tasks are simply absent from the results file, so `--fail-fast` followed by `--resume` is a natural retry loop.
+
+AutoClaw also keeps its own prompt lean: optional tools (web search, email, group notifications, image generation) only register once their credentials are configured, and in long loops older tool results in the model context are replaced by short excerpts.
+
 ### Auto-Confirm (CI/CD)
 Automatically approve all tool executions (dangerous, use with caution or in sandboxes).
 ```bash
@@ -158,6 +167,7 @@ AutoClaw uses a hierarchical configuration system.
 - `model`: Default model to use.
 - `maxSteps`: Max LLM turns per task before the agent stops (default: `25`).
 - `shellTimeout`: Shell command timeout in milliseconds (default: `120000`).
+- `shell`: Force a shell for `execute_shell_command` (`bash`, `powershell`, `cmd`, `sh`; default: auto-detect — Git Bash > PowerShell > cmd on Windows).
 - `tavilyApiKey`: API Key for Tavily Web Search.
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
 - `feishuWebhook`, `dingtalkWebhook`, `wecomWebhook`: Notification webhooks.
@@ -177,6 +187,7 @@ Create a file at `.autoclaw/setting.json`:
 - `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`: main LLM settings.
 - `AUTOCLOW_PROVIDER`: provider preset used when `-P` is not passed.
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: reliability limits (max LLM turns per task; shell timeout in ms).
+- `AUTOCLOW_SHELL`: force the shell for shell commands (`bash`, `powershell`, `cmd`, `sh`).
 - `AUTOCLOW_INCLUDE_USAGE`: set to `1`/`true` to request token usage from the API (opt-in).
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: tool credentials as an alternative to setup.
 

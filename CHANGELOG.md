@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Shell execution layer** (`src/shell.ts`): resolves a concrete shell (Git Bash > PowerShell > cmd on Windows; `config.shell` / `AUTOCLOW_SHELL` override) and drives it via spawn with explicit argv — no more cmd.exe-by-default. Timeouts kill the whole process tree (`taskkill /T /F`), output is decoded as UTF-8 with GBK fallback, and `maxBuffer` overflow truncates instead of throwing.
+- **On-demand tool registration**: optional tools (email, search, group notify, image, prompt optimizer — and browser/screenshot when playwright is missing) are dropped from the tool definitions and the system prompt until their credentials exist, cutting per-turn prompt overhead.
+- **Tool-result trimming**: in long loops, tool results older than the last three are replaced in history by a bounded excerpt with a re-run hint; large outputs stay on disk via `/view`.
+- **Batch `--resume`**: skips tasks already `completed` in the results file and carries their results over — `--fail-fast` then `--resume` forms a natural retry loop.
+- **Batch `-c/--concurrency <n>`**: run up to N tasks in parallel (default: 1, sequential).
+
 ## 1.3.0 (2026-09-01)
 
 ### Added

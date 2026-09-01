@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import dotenv from 'dotenv';
 import { Agent } from './agent.js';
 import { parseManifest, runBatch } from './batch.js';
-import type { BatchResult, ManifestEntry } from './batch.js';
+import type { BatchResult, ManifestEntry, ResumeState } from './batch.js';
 import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -122,6 +122,8 @@ program
   .description('Run tasks from a JSONL manifest, each in a fresh agent ({"id":"...","task":"..."})')
   .option('-o, --output <file>', 'Per-task results as JSONL (default: <manifest base>.results.jsonl)')
   .option('--fail-fast', 'Stop on the first failed task')
+  .option('--resume', 'Skip tasks already completed in the results file')
+  .option('-c, --concurrency <n>', 'Max tasks to run in parallel (default: 1)')
   .action(async (manifest, cmdOptions) => {
     const options = program.opts();
     await runBatchCommand(manifest, options, cmdOptions);
@@ -517,11 +519,35 @@ async function runBatchCommand(manifestPath: string, globalOptions: any, cmdOpti
 
   const outputPath = cmdOptions.output || manifestPath.replace(/\.[^.]+$/, '') + '.results.jsonl';
 
-  console.log(chalk.bold.cyan(`AutoClaw Batch 🦞  ${entries.length} task(s)`));
+  let resumeState: ResumeState | undefined;
+  if (cmdOptions.resume) {
+    const previousById = new Map<string, BatchResult>();
+    const completedIds = new Set<string>();
+    if (fs.existsSync(outputPath)) {
+      for (const line of fs.readFileSync(outputPath, 'utf-8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const r = JSON.parse(line) as BatchResult;
+          if (r?.id) {
+            previousById.set(r.id, r);
+            if (r.status === 'completed') completedIds.add(r.id);
+          }
+        } catch {
+          // ignore malformed lines in the previous results file
+        }
+      }
+    } else {
+      console.log(chalk.yellow(`--resume: no previous results at ${outputPath}; starting fresh.`));
+    }
+    resumeState = { completedIds, previousById };
+  }
+  const concurrency = Math.max(1, parseInt(cmdOptions.concurrency ?? '1', 10) || 1);
+
+  console.log(chalk.bold.cyan(`AutoClaw Batch 🦞  ${entries.length} task(s)${concurrency > 1 ? ` (concurrency ${concurrency})` : ''}${resumeState ? ' [resume]' : ''}`));
   console.log(chalk.dim(`Results: ${outputPath}\n`));
   const startedAt = Date.now();
 
-  const { results, completed, failed } = await runBatch(
+  const { results, completed, failed, skipped } = await runBatch(
     entries,
     async (entry: ManifestEntry): Promise<BatchResult> => {
       // A fresh Agent per task keeps contexts isolated; per-task overrides
@@ -550,6 +576,8 @@ async function runBatchCommand(manifestPath: string, globalOptions: any, cmdOpti
     },
     {
       failFast: !!cmdOptions.failFast,
+      concurrency,
+      resume: resumeState,
       onResult: (entry, result, done, total) => {
         const color = result.status === 'completed' ? chalk.green : chalk.red;
         console.log(color(`[${done}/${total}] ${entry.id} -> ${result.status} (${Math.round(result.durationMs / 1000)}s)`));
@@ -564,7 +592,8 @@ async function runBatchCommand(manifestPath: string, globalOptions: any, cmdOpti
     process.exit(1);
   }
 
-  console.log(chalk.cyan(`\nBatch done: ${completed}/${results.length} completed, ${failed} failed in ${Math.round((Date.now() - startedAt) / 1000)}s -> ${outputPath}`));
+  const skipNote = skipped > 0 ? `, ${skipped} skipped (resume)` : '';
+  console.log(chalk.cyan(`\nBatch done: ${completed}/${results.length + skipped} completed, ${failed} failed${skipNote} in ${Math.round((Date.now() - startedAt) / 1000)}s -> ${outputPath}`));
   process.exit(failed > 0 ? 1 : 0);
 }
 

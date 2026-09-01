@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { ReadFileTool, WriteFileTool, DateTimeTool } from './core.js';
+import { ReadFileTool, WriteFileTool, DateTimeTool, ShellTool } from './core.js';
 
 describe('core tools', () => {
   let tempDir: string;
@@ -50,4 +50,39 @@ describe('core tools', () => {
     expect(typeof parsed.weekday).toBe('string');
     expect(Number.isNaN(Date.parse(parsed.iso))).toBe(false);
   });
+});
+
+describe('ShellTool', () => {
+  const originalTTY = process.stdin.isTTY;
+
+  afterAll(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: originalTTY, configurable: true });
+  });
+
+  it('denies execution when confirmation is required but stdin is not a TTY', async () => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+
+    const result = await ShellTool.handler({ command: 'echo hi', rationale: 'test' }, {});
+
+    expect(result).toContain('no interactive terminal is attached');
+    expect(result).toContain('--yes');
+  });
+
+  it('executes commands when autoConfirm is enabled', async () => {
+    const result = await ShellTool.handler(
+      { command: 'node -e "console.log(41+1)"', rationale: 'test' },
+      { autoConfirm: true }
+    );
+
+    expect(result).toContain('42');
+  });
+
+  it('kills commands that exceed the configured timeout', async () => {
+    const result = await ShellTool.handler(
+      { command: 'node -e "setTimeout(()=>{},10000)"', rationale: 'test' },
+      { autoConfirm: true, shellTimeout: 300 }
+    );
+
+    expect(result).toContain('timed out after 300ms');
+  }, 10000);
 });

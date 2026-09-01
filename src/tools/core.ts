@@ -8,6 +8,9 @@ import { ToolModule } from './interface.js';
 
 const execAsync = util.promisify(exec);
 
+const DEFAULT_SHELL_TIMEOUT_MS = 120000;
+const SHELL_MAX_BUFFER = 10 * 1024 * 1024;
+
 export const ShellTool: ToolModule = {
   name: "Shell Execution",
   definition: {
@@ -29,8 +32,15 @@ export const ShellTool: ToolModule = {
     console.log(chalk.yellow(`\nAI wants to execute: `) + chalk.bold(args.command));
     console.log(chalk.dim(`Reason: ${args.rationale}`));
 
+    const timeoutMs = Number(config?.shellTimeout || process.env.AUTOCLOW_SHELL_TIMEOUT || DEFAULT_SHELL_TIMEOUT_MS);
+
     // Check for auto-confirm flag
     if (!config?.autoConfirm) {
+      if (!process.stdin.isTTY) {
+        // No human can answer the confirmation prompt in this environment;
+        // denying beats hanging on a dead prompt or auto-running unasked.
+        return "Denied: this shell command requires user confirmation, but no interactive terminal is attached. Re-run with --yes (or -y) to allow unattended execution.";
+      }
       const { confirm } = await inquirer.prompt([
         {
           type: 'confirm',
@@ -46,9 +56,15 @@ export const ShellTool: ToolModule = {
     }
 
     try {
-      const { stdout, stderr } = await execAsync(args.command);
+      const { stdout, stderr } = await execAsync(args.command, {
+        timeout: timeoutMs,
+        maxBuffer: SHELL_MAX_BUFFER
+      });
       return stdout + (stderr ? `\nStderr: ${stderr}` : '');
     } catch (error: any) {
+      if (error.killed === true || error.signal) {
+        return `Command timed out after ${timeoutMs}ms and was terminated.\nStdout: ${error.stdout ?? ''}\nStderr: ${error.stderr ?? ''}`;
+      }
       return `Command failed: ${error.message}\nStdout: ${error.stdout}\nStderr: ${error.stderr}`;
     }
   }

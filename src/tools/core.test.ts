@@ -72,6 +72,32 @@ describe('core tools', () => {
     expect(result).toContain('Error writing file:');
   });
 
+  it('blocks reads of AutoClaw credential files and .env stores', async () => {
+    const settingPath = path.join(os.homedir(), '.autoclaw', 'setting.json');
+    const envPath = path.join(tempDir, '.env.local');
+
+    const r1 = await ReadFileTool.handler({ path: settingPath }, {});
+    expect(r1).toContain('blocked by AutoClaw safety policy');
+
+    await fs.writeFile(envPath, 'SECRET=1', 'utf-8');
+    const r2 = await ReadFileTool.handler({ path: envPath }, {});
+    expect(r2).toContain('blocked by AutoClaw safety policy');
+  });
+
+  it('blocks writes to credential files unless allowDangerous', async () => {
+    const settingPath = path.join(os.homedir(), '.autoclaw', 'setting.json');
+
+    const blocked = await WriteFileTool.handler({ path: settingPath, content: 'hacked' }, { autoConfirm: true });
+    expect(blocked).toContain('It was NOT written');
+
+    const allowed = await WriteFileTool.handler(
+      { path: path.join(tempDir, '.env'), content: 'A=1' },
+      { autoConfirm: true, allowDangerous: true }
+    );
+    expect(allowed).toContain('Successfully wrote');
+    expect(await fs.readFile(path.join(tempDir, '.env'), 'utf-8')).toBe('A=1');
+  });
+
   it('DateTimeTool returns valid JSON with expected fields', async () => {
     const result = await DateTimeTool.handler({}, {});
     const parsed = JSON.parse(result);

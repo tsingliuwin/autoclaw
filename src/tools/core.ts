@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ToolModule } from './interface.js';
 import { execShellCommand } from '../shell.js';
+import * as os from 'os';
 
 const DEFAULT_SHELL_TIMEOUT_MS = 120000;
 const SHELL_MAX_BUFFER = 10 * 1024 * 1024;
@@ -30,6 +31,25 @@ export const DANGEROUS_PATTERNS: { re: RegExp; label: string }[] = [
 export function matchDangerousPattern(command: string): string | null {
   const hit = DANGEROUS_PATTERNS.find(p => p.re.test(command));
   return hit ? hit.label : null;
+}
+
+// An unattended agent reads web pages and repos; a prompt injection must not
+// end up reading AutoClaw's own credential stores (or classic .env files)
+// and exfiltrating them. Blocked for read_file/write_file unless
+// --allow-dangerous. execute_shell_command is not pattern-restricted here.
+export function isSensitivePath(p: string): boolean {
+  const norm = path.normalize(String(p)).toLowerCase();
+  const protectedFiles = [
+    path.join(os.homedir(), '.autoclaw', 'setting.json').toLowerCase(),
+    path.join(os.homedir(), '.autoclaw', '.env').toLowerCase(),
+    path.join(process.cwd(), '.autoclaw', 'setting.json').toLowerCase()
+  ];
+  if (protectedFiles.includes(norm)) return true;
+  return path.basename(norm).startsWith('.env');
+}
+
+function sensitivePathBlock(p: string, verb: 'read' | 'write'): string {
+  return `Error: ${p} is blocked by AutoClaw safety policy (credential/secret store). It was NOT ${verb === 'read' ? 'read' : 'written'}. If this task genuinely requires it, restart AutoClaw with --allow-dangerous.`;
 }
 
 export const ShellTool: ToolModule = {
@@ -117,7 +137,10 @@ export const ReadFileTool: ToolModule = {
       }
     }
   },
-  handler: async (args: any) => {
+  handler: async (args: any, config: any) => {
+    if (!config?.allowDangerous && isSensitivePath(args.path)) {
+      return sensitivePathBlock(args.path, 'read');
+    }
     let fh;
     try {
       fh = await fs.open(args.path, 'r');
@@ -160,7 +183,10 @@ export const WriteFileTool: ToolModule = {
       }
     }
   },
-  handler: async (args: any) => {
+  handler: async (args: any, config: any) => {
+    if (!config?.allowDangerous && isSensitivePath(args.path)) {
+      return sensitivePathBlock(args.path, 'write');
+    }
     try {
       await fs.mkdir(path.dirname(args.path), { recursive: true });
       await fs.writeFile(args.path, args.content, 'utf-8');

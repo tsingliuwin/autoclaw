@@ -154,4 +154,95 @@ describe('Agent.chat', () => {
     expect(mocks.spinnerFailMock).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalled();
   });
+
+  it('retries transient API errors before the stream starts', async () => {
+    vi.useFakeTimers();
+    try {
+      const { Agent } = await import('./agent.js');
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      mocks.createMock
+        .mockRejectedValueOnce(Object.assign(new Error('upstream down'), { status: 503 }))
+        .mockResolvedValueOnce(streamFrom([{ content: 'Recovered' }]));
+
+      const agent = new Agent('test-key', undefined, 'test-model', {});
+      const done = agent.chat('flaky api');
+      await vi.runAllTimersAsync();
+      await done;
+
+      expect(mocks.createMock).toHaveBeenCalledTimes(2);
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops after reaching the max step limit', async () => {
+    const { Agent } = await import('./agent.js');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock.mockImplementation(async () =>
+      streamFrom([
+        {
+          tool_calls: [
+            {
+              index: 0,
+              id: `call-${Math.random()}`,
+              type: 'function',
+              function: { name: 'read_file', arguments: '{}' }
+            }
+          ]
+        }
+      ])
+    );
+    mocks.executeToolHandlerMock.mockResolvedValue('ok');
+
+    const agent = new Agent('test-key', undefined, 'test-model', { maxSteps: 3 });
+    await agent.chat('loop forever');
+
+    expect(mocks.createMock).toHaveBeenCalledTimes(3);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[MaxSteps]'));
+  });
+
+  it('feeds malformed tool arguments back to the model instead of crashing', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock
+      .mockResolvedValueOnce(
+        streamFrom([
+          {
+            tool_calls: [
+              {
+                index: 0,
+                id: 'call-bad',
+                type: 'function',
+                function: { name: 'read_file', arguments: '{not json' }
+              }
+            ]
+          }
+        ])
+      )
+      .mockResolvedValueOnce(streamFrom([{ content: 'Recovered' }]));
+
+    const agent = new Agent('test-key', undefined, 'test-model', {});
+    await agent.chat('bad args');
+
+    expect(mocks.executeToolHandlerMock).not.toHaveBeenCalled();
+    expect(mocks.createMock).toHaveBeenCalledTimes(2);
+    const secondCallArgs = mocks.createMock.mock.calls[1][0];
+    expect(secondCallArgs.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          role: 'tool',
+          tool_call_id: 'call-bad',
+          content: expect.stringContaining('not valid JSON')
+        })
+      ])
+    );
+  });
 });

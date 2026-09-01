@@ -5,6 +5,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { getToolDefinitions, executeToolHandler } from './tools/index.js';
+import { withRetry } from './retry.js';
+
+const DEFAULT_MAX_STEPS = 25;
 
 export class Agent {
   private client: OpenAI;
@@ -65,26 +68,51 @@ RULES OF ENGAGEMENT:
   async chat(userInput: string): Promise<void> {
     this.messages.push({ role: "user", content: userInput });
 
+    const maxSteps = Number(this.config?.maxSteps || process.env.AUTOCLOW_MAX_STEPS || DEFAULT_MAX_STEPS);
     let active = true;
+    let step = 0;
     while (active) {
+      step++;
+      if (step > maxSteps) {
+        console.log(chalk.yellow(`\n[MaxSteps] Reached the ${maxSteps}-turn limit; stopping to avoid a runaway loop.`));
+        break;
+      }
       const spinner = ora('Thinking...').start();
 
+      let stream: AsyncIterable<any>;
       try {
-        const stream = await this.client.chat.completions.create({
-            model: this.model,
-            messages: this.messages,
-            tools: getToolDefinitions() as any,
-            tool_choice: "auto",
-            stream: true
-        });
+        // Retries cover request setup and the header phase; a failure after
+        // the stream started yielding chunks is not retried, because partial
+        // output may already have been printed.
+        stream = await withRetry(
+          async () => this.client.chat.completions.create({
+              model: this.model,
+              messages: this.messages,
+              tools: getToolDefinitions() as any,
+              tool_choice: "auto",
+              stream: true
+          }) as unknown as AsyncIterable<any>,
+          {
+            onRetry: (err, nextAttempt, delayMs) => {
+              spinner.text = `API error (${err.message}); retrying in ${Math.round(delayMs / 1000)}s (attempt ${nextAttempt})...`;
+            }
+          }
+        );
+      } catch (error: any) {
+        spinner.fail('Error during processing');
+        console.error(chalk.red(error.message));
+        active = false;
+        break;
+      }
 
-        let content = '';
-        let reasoningContent = '';
-        let toolCalls: { id: string; type: 'function'; function: { name: string; arguments: string } }[] = [];
-        let contentStarted = false;
-        let reasoningStarted = false;
-        const toolNamesSeen = new Set<number>();
+      let content = '';
+      let reasoningContent = '';
+      let toolCalls: { id: string; type: 'function'; function: { name: string; arguments: string } }[] = [];
+      let contentStarted = false;
+      let reasoningStarted = false;
+      const toolNamesSeen = new Set<number>();
 
+      try {
         for await (const chunk of stream) {
           const delta = chunk.choices[0]?.delta as any;
 
@@ -133,97 +161,115 @@ RULES OF ENGAGEMENT:
             }
           }
         }
-
-        if (reasoningStarted) {
-          console.log(); // newline after reasoning
-        }
-        if (contentStarted) {
-          console.log(); // newline after streamed content
-        }
-        if (!reasoningStarted && !contentStarted) {
-          spinner.stop();
-        }
-
-        // Build the full message for history
-        const message: any = { role: "assistant" };
-        if (content) message.content = content;
-        if (reasoningContent) message.reasoning_content = reasoningContent;
-        if (toolCalls.length > 0) {
-          message.tool_calls = toolCalls;
-          message.content = message.content || null;
-        }
-        this.messages.push(message);
-
-        if (toolCalls.length > 0) {
-          for (const toolCall of toolCalls) {
-            if (toolCall.type !== 'function') continue;
-
-            const functionName = toolCall.function.name;
-            const functionArgs = JSON.parse(toolCall.function.arguments);
-
-            // Display tool call info
-            console.log(chalk.cyan(`\n[Tool] ${functionName}`));
-            const argsStr = JSON.stringify(functionArgs, null, 2);
-            const argsLines = argsStr.split('\n');
-            if (argsLines.length > 8) {
-              console.log(chalk.dim(argsLines.slice(0, 8).join('\n')));
-              console.log(chalk.dim(`  ... (${argsLines.length - 8} more lines)`));
-            } else {
-              console.log(chalk.dim(argsStr));
-            }
-
-            const execSpinner = ora('Executing...').start();
-            let toolResult: string;
-            try {
-              toolResult = await executeToolHandler(functionName, functionArgs, this.config);
-              execSpinner.stop();
-            } catch (err: any) {
-              execSpinner.fail('Tool execution failed');
-              toolResult = `Error: ${err.message}`;
-            }
-
-            // Display result with folding for long output
-            const MAX_PREVIEW_LINES = 20;
-            const resultLines = toolResult.split('\n');
-
-            console.log(chalk.green(`[Result]`));
-
-            if (resultLines.length > MAX_PREVIEW_LINES) {
-              // Show preview
-              console.log(resultLines.slice(0, MAX_PREVIEW_LINES).join('\n'));
-              const remaining = resultLines.length - MAX_PREVIEW_LINES;
-              console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
-
-              // Save full output to file
-              const outputDir = path.join(os.homedir(), '.autoclaw', 'output');
-              if (!fs.existsSync(outputDir)) {
-                fs.mkdirSync(outputDir, { recursive: true });
-              }
-              const ts = new Date().toISOString().replace(/[:.]/g, '-');
-              const outputFile = path.join(outputDir, `${functionName}_${ts}.txt`);
-              fs.writeFileSync(outputFile, toolResult, 'utf-8');
-              this.lastOutputFile = outputFile;
-              console.log(chalk.dim(`  Type '/view' to see full output`));
-            } else {
-              console.log(toolResult);
-              this.lastOutputFile = null;
-            }
-
-            this.messages.push({
-              role: "tool",
-              tool_call_id: toolCall.id,
-              content: toolResult
-            });
-          }
-        } else {
-          active = false;
-        }
-
       } catch (error: any) {
         spinner.fail('Error during processing');
         console.error(chalk.red(error.message));
         active = false;
+        break;
       }
+
+      if (reasoningStarted) {
+        console.log(); // newline after reasoning
+      }
+      if (contentStarted) {
+        console.log(); // newline after streamed content
+      }
+      if (!reasoningStarted && !contentStarted) {
+        spinner.stop();
+      }
+
+      // Build the full message for history
+      const message: any = { role: "assistant" };
+      if (content) message.content = content;
+      if (reasoningContent) message.reasoning_content = reasoningContent;
+      if (toolCalls.length > 0) {
+        message.tool_calls = toolCalls;
+        message.content = message.content || null;
+      }
+      this.messages.push(message);
+
+      if (toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
+          if (toolCall.type !== 'function') continue;
+
+          const functionName = toolCall.function.name;
+          let functionArgs: any;
+          try {
+            functionArgs = JSON.parse(toolCall.function.arguments || '{}');
+          } catch (parseError: any) {
+            // Feed the failure back so the model can correct itself next turn
+            console.log(chalk.red(`\n[Tool] ${functionName} — malformed arguments (not valid JSON)`));
+            this.messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: `Error: arguments for ${functionName} were not valid JSON (${parseError.message}). Re-issue the tool call with well-formed JSON arguments.`
+            });
+            continue;
+          }
+
+          // Display tool call info
+          console.log(chalk.cyan(`\n[Tool] ${functionName}`));
+          const argsStr = JSON.stringify(functionArgs, null, 2);
+          const argsLines = argsStr.split('\n');
+          if (argsLines.length > 8) {
+            console.log(chalk.dim(argsLines.slice(0, 8).join('\n')));
+            console.log(chalk.dim(`  ... (${argsLines.length - 8} more lines)`));
+          } else {
+            console.log(chalk.dim(argsStr));
+          }
+
+          const execSpinner = ora('Executing...').start();
+          let toolResult: string;
+          try {
+            toolResult = await executeToolHandler(functionName, functionArgs, this.config);
+            execSpinner.stop();
+          } catch (err: any) {
+            execSpinner.fail('Tool execution failed');
+            toolResult = `Error: ${err.message}`;
+          }
+
+          // Display result with folding for long output
+          const MAX_PREVIEW_LINES = 20;
+          const resultLines = toolResult.split('\n');
+
+          console.log(chalk.green(`[Result]`));
+
+          if (resultLines.length > MAX_PREVIEW_LINES) {
+            // Show preview
+            console.log(resultLines.slice(0, MAX_PREVIEW_LINES).join('\n'));
+            const remaining = resultLines.length - MAX_PREVIEW_LINES;
+            console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
+
+            // Save full output to file
+            const outputFile = await this.saveOutput(functionName, toolResult);
+            console.log(chalk.dim(`  Type '/view' to see full output`));
+            this.lastOutputFile = outputFile;
+          } else {
+            console.log(toolResult);
+            this.lastOutputFile = null;
+          }
+
+          this.messages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: toolResult
+          });
+        }
+      } else {
+        active = false;
+      }
+
     }
+  }
+
+  private async saveOutput(functionName: string, toolResult: string): Promise<string> {
+    const outputDir = path.join(os.homedir(), '.autoclaw', 'output');
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    const outputFile = path.join(outputDir, `${functionName}_${ts}.txt`);
+    fs.writeFileSync(outputFile, toolResult, 'utf-8');
+    return outputFile;
   }
 }

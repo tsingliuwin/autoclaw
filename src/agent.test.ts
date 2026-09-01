@@ -39,6 +39,18 @@ vi.mock('ora', () => {
   };
 });
 
+// The agent consumes a streamed chat completion (stream: true), so mocks must
+// return an async-iterable of OpenAI delta chunks instead of a full response.
+function streamFrom(deltas: any[]) {
+  return {
+    async *[Symbol.asyncIterator]() {
+      for (const delta of deltas) {
+        yield { choices: [{ delta }] };
+      }
+    }
+  };
+}
+
 describe('Agent.chat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -60,17 +72,11 @@ describe('Agent.chat', () => {
   it('sends user prompt and exits when assistant responds with content only', async () => {
     const { Agent } = await import('./agent.js');
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
-    mocks.createMock.mockResolvedValueOnce({
-      choices: [
-        {
-          message: {
-            role: 'assistant',
-            content: 'Hello from assistant'
-          }
-        }
-      ]
-    });
+    mocks.createMock.mockResolvedValueOnce(
+      streamFrom([{ content: 'Hello from assistant' }])
+    );
 
     const agent = new Agent('test-key', 'https://example.com/v1', 'test-model', {});
     await agent.chat('say hello');
@@ -80,11 +86,11 @@ describe('Agent.chat', () => {
       expect.objectContaining({
         model: 'test-model',
         tools: [{ type: 'function', function: { name: 'read_file' } }],
-        tool_choice: 'auto'
+        tool_choice: 'auto',
+        stream: true
       })
     );
     expect(mocks.executeToolHandlerMock).not.toHaveBeenCalled();
-    expect(mocks.spinnerStopMock).toHaveBeenCalledTimes(1);
     expect(mocks.spinnerFailMock).not.toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalled();
   });
@@ -92,38 +98,27 @@ describe('Agent.chat', () => {
   it('executes tool calls and continues loop until final assistant message', async () => {
     const { Agent } = await import('./agent.js');
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
 
     mocks.createMock
-      .mockResolvedValueOnce({
-        choices: [
+      .mockResolvedValueOnce(
+        streamFrom([
           {
-            message: {
-              role: 'assistant',
-              content: null,
-              tool_calls: [
-                {
-                  id: 'tool-call-1',
-                  type: 'function',
-                  function: {
-                    name: 'read_file',
-                    arguments: JSON.stringify({ path: 'README.md' })
-                  }
+            tool_calls: [
+              {
+                index: 0,
+                id: 'tool-call-1',
+                type: 'function',
+                function: {
+                  name: 'read_file',
+                  arguments: JSON.stringify({ path: 'README.md' })
                 }
-              ]
-            }
+              }
+            ]
           }
-        ]
-      })
-      .mockResolvedValueOnce({
-        choices: [
-          {
-            message: {
-              role: 'assistant',
-              content: 'Done'
-            }
-          }
-        ]
-      });
+        ])
+      )
+      .mockResolvedValueOnce(streamFrom([{ content: 'Done' }]));
 
     mocks.executeToolHandlerMock.mockResolvedValueOnce('file content');
 
@@ -142,9 +137,8 @@ describe('Agent.chat', () => {
         expect.objectContaining({ role: 'tool', tool_call_id: 'tool-call-1', content: 'file content' })
       ])
     );
-    expect(mocks.spinnerStopMock).toHaveBeenCalledTimes(2);
     expect(mocks.spinnerFailMock).not.toHaveBeenCalled();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Executing tool: read_file...'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('[Tool] read_file'));
   });
 
   it('handles OpenAI request errors and stops processing loop', async () => {

@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { getToolDefinitions, executeToolHandler } from './tools/index.js';
 import { withRetry } from './retry.js';
+import { truncateOutput } from './truncate.js';
 
 const DEFAULT_MAX_STEPS = 25;
 
@@ -228,31 +229,35 @@ RULES OF ENGAGEMENT:
             toolResult = `Error: ${err.message}`;
           }
 
-          // Display result with folding for long output
+          // Bound what goes back into the model context; the full output is
+          // kept on disk for /view.
           const MAX_PREVIEW_LINES = 20;
-          const resultLines = toolResult.split('\n');
+          const truncation = truncateOutput(toolResult);
+          const boundedResult = truncation.content;
+          const resultLines = boundedResult.split('\n');
 
           console.log(chalk.green(`[Result]`));
 
-          if (resultLines.length > MAX_PREVIEW_LINES) {
-            // Show preview
+          if (resultLines.length > MAX_PREVIEW_LINES || truncation.truncated) {
             console.log(resultLines.slice(0, MAX_PREVIEW_LINES).join('\n'));
             const remaining = resultLines.length - MAX_PREVIEW_LINES;
-            console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
+            if (remaining > 0) {
+              console.log(chalk.dim(`\n  ... ${remaining} more lines (${resultLines.length} lines total)`));
+            }
 
             // Save full output to file
             const outputFile = await this.saveOutput(functionName, toolResult);
             console.log(chalk.dim(`  Type '/view' to see full output`));
             this.lastOutputFile = outputFile;
           } else {
-            console.log(toolResult);
+            console.log(boundedResult);
             this.lastOutputFile = null;
           }
 
           this.messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
-            content: toolResult
+            content: boundedResult
           });
         }
       } else {

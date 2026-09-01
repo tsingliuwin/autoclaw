@@ -245,4 +245,41 @@ describe('Agent.chat', () => {
       ])
     );
   });
+
+  it('truncates oversized tool results before they enter the model context', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock
+      .mockResolvedValueOnce(
+        streamFrom([
+          {
+            tool_calls: [
+              {
+                index: 0,
+                id: 'call-huge',
+                type: 'function',
+                function: { name: 'read_file', arguments: JSON.stringify({ path: 'big.log' }) }
+              }
+            ]
+          }
+        ])
+      )
+      .mockResolvedValueOnce(streamFrom([{ content: 'Done' }]));
+
+    const hugeOutput = Array.from({ length: 3000 }, (_, i) => `line-${i}: ${'x'.repeat(10)}`).join('\n');
+    mocks.executeToolHandlerMock.mockResolvedValueOnce(hugeOutput);
+
+    const agent = new Agent('test-key', undefined, 'test-model', {});
+    await agent.chat('read big file');
+
+    expect(agent.lastOutputFile).toBeTruthy();
+    const secondCallArgs = mocks.createMock.mock.calls[1][0];
+    const toolMessage = secondCallArgs.messages.find(
+      (m: any) => m.role === 'tool' && m.tool_call_id === 'call-huge'
+    );
+    expect(toolMessage.content).toContain('[Truncated: showing 2000 of 3000 lines');
+    expect(toolMessage.content.length).toBeLessThan(hugeOutput.length);
+  });
 });

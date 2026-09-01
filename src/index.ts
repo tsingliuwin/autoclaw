@@ -80,7 +80,7 @@ dotenv.config({ path: GLOBAL_ENV_FILE });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // In dist/index.js, package.json is usually up one level in the root
 const pkgPath = path.join(__dirname, '..', 'package.json');
-let version = '1.2.0';
+let version = '1.3.0';
 
 try {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));

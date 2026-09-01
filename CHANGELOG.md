@@ -1,9 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.0 (2026-09-01)
 
 ### Added
 - **Batch mode** (`autoclaw batch <manifest.jsonl>`): run a JSONL task list sequentially, each task in a fresh isolated agent; per-task results (`status`, `steps`, `message`, `error`, `usage`) written to a JSONL file (`-o`, default `<manifest>.results.jsonl`). Continue-on-error with `--fail-fast` opt-in; process exits `0` only when every task completed. Optional per-task `maxSteps` / `model` / `provider` overrides.
+- Coverage tooling (`npm run coverage`) and spawn-based CLI end-to-end tests against a local mock LLM endpoint.
 
 ### Changed
 - System prompt now describes the actual shell per platform (on Windows: cmd.exe semantics — `&&` only, no `$()` substitution, no `mkdir -p`, GBK output; prefer `powershell -Command`) — cuts trial-and-error turns when automating Windows machines.

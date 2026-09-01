@@ -2,6 +2,7 @@ import { afterEach, beforeEach, afterAll, beforeAll, describe, expect, it, vi } 
 import * as fs from 'node:fs/promises';
 import * as nodeOs from 'node:os';
 import * as nodePath from 'node:path';
+import { buildShellInfo } from './agent.js';
 
 const mocks = vi.hoisted(() => {
   return {
@@ -402,5 +403,28 @@ describe('Agent.chat', () => {
     await agent.chat('x');
 
     expect(mocks.createMock.mock.calls[0][0]).not.toHaveProperty('stream_options');
+  });
+});
+
+describe('buildShellInfo', () => {
+  it('describes cmd.exe semantics on Windows', () => {
+    const info = buildShellInfo('win32');
+    expect(info).toContain('cmd.exe');
+    expect(info).toContain('&&');
+    expect(info).toContain('powershell');
+  });
+
+  it('describes POSIX semantics on Unix platforms', () => {
+    expect(buildShellInfo('linux')).toContain('POSIX');
+    expect(buildShellInfo('darwin')).toContain('POSIX');
+  });
+
+  it('injects shell guidance into the system prompt', async () => {
+    const { Agent } = await import('./agent.js');
+    const agent = new Agent('test-key', undefined, 'test-model', {});
+    const system = (agent as any).messages[0].content as string;
+
+    expect(system).toContain('Shell:');
+    expect(system).toContain(buildShellInfo());
   });
 });

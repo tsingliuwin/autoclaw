@@ -78,7 +78,7 @@ npm install -g autoclaw
 
 ## Quick Start
 
-1.  **Setup**: Run the interactive setup wizard to configure your API keys and integrations.
+1.  **Setup**: Run the interactive setup wizard to configure your API keys and integrations. The wizard runs a live connection test (failures map to the likely wrong field: 401 = key, 404 = base URL, 400 = model name) and can list the provider's models for you to pick from.
     ```bash
     autoclaw setup
     ```

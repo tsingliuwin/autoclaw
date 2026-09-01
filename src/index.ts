@@ -7,6 +7,7 @@ import { Agent } from './agent.js';
 import { parseManifest, runBatch } from './batch.js';
 import type { BatchResult, ManifestEntry, ResumeState } from './batch.js';
 import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
+import { fetchModelIds, normalizeBaseUrl, testConnection } from './setup.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -155,7 +156,7 @@ async function runSetup(options: any = {}) {
 
   const providerAnswer = await inquirer.prompt([
     {
-      type: 'list',
+      type: 'select',
       name: 'provider',
       message: 'Select your LLM provider:',
       choices: [
@@ -168,32 +169,97 @@ async function runSetup(options: any = {}) {
   const provider: string = providerAnswer.provider;
   const preset = resolveProvider(provider === 'custom' ? undefined : provider);
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'password',
-      name: 'apiKey',
-      message: currentConfig.apiKey 
-        ? `Enter OpenAI API Key (Leave empty to keep ${maskSecret(currentConfig.apiKey)}):`
-        : 'Enter OpenAI API Key:',
-      mask: '*',
-      validate: (input) => {
-        if (input.length > 0) return true;
-        if (currentConfig.apiKey) return true;
-        return 'API Key cannot be empty.';
+  // The connection part (key / Base URL / model) is asked in a loop with a
+  // live test, so typos never make it into the saved config.
+  const askConnection = async (): Promise<{ apiKey: string; baseUrl: string; model: string }> => {
+    const defaults = {
+      apiKey: currentConfig.apiKey,
+      baseUrl: currentConfig.baseUrl || preset?.baseUrl || 'https://api.openai.com/v1',
+      model: currentConfig.model || preset?.defaultModel || 'gpt-5.6'
+    };
+    const core = await inquirer.prompt([
+      {
+        type: 'password',
+        name: 'apiKey',
+        message: defaults.apiKey
+          ? `Enter API Key (Leave empty to keep ${maskSecret(defaults.apiKey)}):`
+          : `Enter API Key${preset?.apiKeyEnv ? ` (or set ${preset.apiKeyEnv} in your environment)` : ''}:`,
+        mask: '*',
+        validate: (input: string) => {
+          if (input.length > 0) return true;
+          if (defaults.apiKey) return true;
+          return 'API Key cannot be empty.';
+        }
+      },
+      {
+        type: 'input',
+        name: 'baseUrl',
+        message: 'Enter API Base URL:',
+        default: defaults.baseUrl
       }
-    },
-    {
-      type: 'input',
-      name: 'baseUrl',
-      message: 'Enter API Base URL:',
-      default: currentConfig.baseUrl || preset?.baseUrl || 'https://api.openai.com/v1'
-    },
-    {
-      type: 'input',
-      name: 'model',
-      message: 'Enter default Model:',
-      default: currentConfig.model || preset?.defaultModel || 'gpt-5.6'
-    },
+    ]);
+    const apiKey = core.apiKey || defaults.apiKey || '';
+    const baseUrl = normalizeBaseUrl(core.baseUrl || defaults.baseUrl);
+
+    // Prefer the provider's own catalog over guessing model names.
+    console.log(chalk.dim('Fetching available models...'));
+    const ids = await fetchModelIds(baseUrl, apiKey);
+    let model: string;
+    if (ids) {
+      console.log(chalk.dim(`Found ${ids.length} models.`));
+      const picked = await inquirer.prompt([
+        {
+          type: 'select',
+          name: 'model',
+          message: 'Select default Model:',
+          choices: [{ name: '✎ Enter manually', value: '__manual__' }, ...ids.map(id => ({ name: id, value: id }))],
+          default: ids.includes(defaults.model) ? defaults.model : undefined,
+          pageSize: 12
+        }
+      ]);
+      if (picked.model === '__manual__') {
+        const manual = await inquirer.prompt([
+          { type: 'input', name: 'model', message: 'Enter default Model:', default: defaults.model }
+        ]);
+        model = manual.model;
+      } else {
+        model = picked.model;
+      }
+    } else {
+      const manual = await inquirer.prompt([
+        { type: 'input', name: 'model', message: 'Enter default Model (catalog unavailable):', default: defaults.model }
+      ]);
+      model = manual.model;
+    }
+    return { apiKey, baseUrl, model };
+  };
+
+  let connection = await askConnection();
+  console.log(chalk.dim('Running connection test (sends one tiny prompt — normal provider billing applies)...'));
+  let test = await testConnection(connection.baseUrl, connection.apiKey, connection.model);
+  while (!test.ok) {
+    console.log(chalk.red(`\n✗ ${test.message}`));
+    const next = await inquirer.prompt([
+      {
+        type: 'select',
+        name: 'action',
+        message: 'Connection test failed. What next?',
+        choices: [
+          { name: 'Re-enter API key / Base URL / model', value: 'edit' },
+          { name: 'Test again', value: 'retry' },
+          { name: 'Save anyway (e.g. the provider is temporarily down)', value: 'save' }
+        ],
+        default: 'edit'
+      }
+    ]);
+    if (next.action === 'save') break;
+    if (next.action === 'edit') connection = await askConnection();
+    console.log(chalk.dim('Running connection test...'));
+    test = await testConnection(connection.baseUrl, connection.apiKey, connection.model);
+  }
+  if (test.ok) console.log(chalk.green('✓ Connection test passed.'));
+
+  const answers = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'configureImage',
@@ -229,7 +295,7 @@ async function runSetup(options: any = {}) {
   ]);
 
   // Resolve sensitive values (Keep old if empty)
-  const finalApiKey = answers.apiKey || currentConfig.apiKey;
+  const finalApiKey = connection.apiKey || currentConfig.apiKey;
 
   let imageConfig: any = {
     imageApiKey: currentConfig.imageApiKey,
@@ -395,8 +461,8 @@ async function runSetup(options: any = {}) {
 
   const newConfig: AppConfig = {
     apiKey: finalApiKey,
-    baseUrl: answers.baseUrl,
-    model: answers.model,
+    baseUrl: connection.baseUrl,
+    model: connection.model,
     provider: provider === 'custom' ? undefined : provider,
     ...imageConfig,
     ...emailConfig,
@@ -410,6 +476,8 @@ async function runSetup(options: any = {}) {
     }
     fs.writeFileSync(targetFile, JSON.stringify(newConfig, null, 2), { mode: 0o600 });
     console.log(chalk.green(`\n✅ Configuration saved to ${targetFile}`));
+    console.log(chalk.dim(`   provider: ${provider === 'custom' ? 'custom' : provider}  |  baseUrl: ${connection.baseUrl}  |  model: ${connection.model}`));
+    console.log(chalk.dim(`   connection test: ${test.ok ? 'passed ✓' : 'skipped (saved without a passing test)'}`));
     console.log(chalk.cyan("You can now run 'autoclaw' to start using the agent."));
   } catch (error: any) {
     console.error(chalk.red(`Failed to write config: ${error.message}`));

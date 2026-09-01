@@ -4,6 +4,8 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import { Agent } from './agent.js';
+import { parseManifest, runBatch } from './batch.js';
+import type { BatchResult, ManifestEntry } from './batch.js';
 import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -51,6 +53,7 @@ interface AppConfig {
   autoConfirm?: boolean;
   jsonMode?: boolean;
   includeUsage?: boolean;
+  maxSteps?: number;
   feishuWebhook?: string;
   feishuKeyword?: string;
   dingtalkWebhook?: string;
@@ -112,6 +115,16 @@ program
   .action(async (queryParts) => {
     const options = program.opts();
     await runChat(queryParts, options);
+  });
+
+program
+  .command('batch <manifest>')
+  .description('Run tasks from a JSONL manifest, each in a fresh agent ({"id":"...","task":"..."})')
+  .option('-o, --output <file>', 'Per-task results as JSONL (default: <manifest base>.results.jsonl)')
+  .option('--fail-fast', 'Stop on the first failed task')
+  .action(async (manifest, cmdOptions) => {
+    const options = program.opts();
+    await runBatchCommand(manifest, options, cmdOptions);
   });
 
 program.parse(process.argv);
@@ -401,13 +414,9 @@ async function runSetup(options: any = {}) {
   }
 }
 
-async function runChat(queryParts: string[], options: any) {
-  if (options.interactive) {
-    console.log(chalk.bold.cyan("Welcome to AutoClaw CLI 🦞"));
-  }
-  
-  const initialQuery = queryParts.join(' ');
-  
+// Shared by `chat` and `batch`: resolve credentials, endpoints and runtime
+// flags from CLI args > env > project config > global config > provider preset.
+async function resolveRuntime(options: any): Promise<{ apiKey: string; baseURL?: string; model: string; fullConfig: AppConfig }> {
   // 1. Load Global JSON
   const globalConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
 
@@ -416,10 +425,10 @@ async function runChat(queryParts: string[], options: any) {
   if (Object.keys(localConfig).length > 0 && options.interactive) {
     console.log(chalk.dim(`Loaded project config from ${LOCAL_CONFIG_FILE}`));
   }
-  
+
   // 3. Merge Configs for Tool Usage
   // Priority: Local > Global
-  const fullConfig = { ...globalConfig, ...localConfig };
+  const fullConfig: AppConfig = { ...globalConfig, ...localConfig };
 
   // 4. Resolve Provider Preset (CLI > Env > Config)
   const providerName = options.provider || process.env.AUTOCLOW_PROVIDER || fullConfig.provider;
@@ -432,7 +441,7 @@ async function runChat(queryParts: string[], options: any) {
   let apiKey = process.env.OPENAI_API_KEY || fullConfig.apiKey || (preset?.apiKeyEnv ? process.env[preset.apiKeyEnv] : undefined);
   let baseURL = process.env.OPENAI_BASE_URL || fullConfig.baseUrl || preset?.baseUrl;
   let model = options.model || process.env.OPENAI_MODEL || fullConfig.model || preset?.defaultModel || 'gpt-5.6';
-  
+
   // Inject Runtime Flags
   fullConfig.autoConfirm = options.yes;
   fullConfig.jsonMode = !!options.json;
@@ -486,7 +495,89 @@ async function runChat(queryParts: string[], options: any) {
      process.exit(1);
   }
 
-  const agent = new Agent(apiKey!, baseURL, model, fullConfig);
+  return { apiKey, baseURL, model, fullConfig };
+}
+
+async function runBatchCommand(manifestPath: string, globalOptions: any, cmdOptions: any) {
+  const { apiKey, baseURL, model, fullConfig } = await resolveRuntime(globalOptions);
+
+  let raw: string;
+  try {
+    raw = fs.readFileSync(manifestPath, 'utf-8');
+  } catch (err: any) {
+    console.error(chalk.red(`Cannot read manifest ${manifestPath}: ${err.message}`));
+    process.exit(1);
+  }
+
+  const entries = parseManifest(raw);
+  if (entries.length === 0) {
+    console.error(chalk.red(`Manifest ${manifestPath} contains no tasks (blank lines and '#' comments are skipped).`));
+    process.exit(1);
+  }
+
+  const outputPath = cmdOptions.output || manifestPath.replace(/\.[^.]+$/, '') + '.results.jsonl';
+
+  console.log(chalk.bold.cyan(`AutoClaw Batch 🦞  ${entries.length} task(s)`));
+  console.log(chalk.dim(`Results: ${outputPath}\n`));
+  const startedAt = Date.now();
+
+  const { results, completed, failed } = await runBatch(
+    entries,
+    async (entry: ManifestEntry): Promise<BatchResult> => {
+      // A fresh Agent per task keeps contexts isolated; per-task overrides
+      // beat the globally resolved defaults.
+      const taskPreset = resolveProvider(entry.provider);
+      const taskModel = entry.model || taskPreset?.defaultModel || model;
+      const taskBaseURL = taskPreset?.baseUrl || baseURL;
+      const taskConfig: AppConfig = {
+        ...fullConfig,
+        // The results file is the machine-readable contract in batch mode.
+        jsonMode: false,
+        maxSteps: entry.maxSteps ?? fullConfig.maxSteps
+      };
+      const agent = new Agent(apiKey, taskBaseURL, taskModel, taskConfig);
+      const start = Date.now();
+      const runResult = await agent.chat(entry.task);
+      return {
+        id: entry.id,
+        status: runResult.status,
+        steps: runResult.steps,
+        message: runResult.message ?? null,
+        ...(runResult.error ? { error: runResult.error } : {}),
+        ...(runResult.usage ? { usage: runResult.usage } : {}),
+        durationMs: Date.now() - start
+      };
+    },
+    {
+      failFast: !!cmdOptions.failFast,
+      onResult: (entry, result, done, total) => {
+        const color = result.status === 'completed' ? chalk.green : chalk.red;
+        console.log(color(`[${done}/${total}] ${entry.id} -> ${result.status} (${Math.round(result.durationMs / 1000)}s)`));
+      }
+    }
+  );
+
+  try {
+    fs.writeFileSync(outputPath, results.map(r => JSON.stringify(r)).join('\n') + '\n', 'utf-8');
+  } catch (err: any) {
+    console.error(chalk.red(`Failed to write results to ${outputPath}: ${err.message}`));
+    process.exit(1);
+  }
+
+  console.log(chalk.cyan(`\nBatch done: ${completed}/${results.length} completed, ${failed} failed in ${Math.round((Date.now() - startedAt) / 1000)}s -> ${outputPath}`));
+  process.exit(failed > 0 ? 1 : 0);
+}
+
+async function runChat(queryParts: string[], options: any) {
+  if (options.interactive) {
+    console.log(chalk.bold.cyan("Welcome to AutoClaw CLI 🦞"));
+  }
+  
+  const initialQuery = queryParts.join(' ');
+  
+  const { apiKey, baseURL, model, fullConfig } = await resolveRuntime(options);
+
+  const agent = new Agent(apiKey, baseURL, model, fullConfig);
   
   if (options.interactive) {
     console.log(chalk.green(`Agent initialized with model: ${model}`));

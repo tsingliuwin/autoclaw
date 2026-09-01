@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Batch mode** (`autoclaw batch <manifest.jsonl>`): run a JSONL task list sequentially, each task in a fresh isolated agent; per-task results (`status`, `steps`, `message`, `error`, `usage`) written to a JSONL file (`-o`, default `<manifest>.results.jsonl`). Continue-on-error with `--fail-fast` opt-in; process exits `0` only when every task completed. Optional per-task `maxSteps` / `model` / `provider` overrides.
+
 ## 1.2.0 (2026-09-01)
 
 ### Added

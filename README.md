@@ -111,6 +111,16 @@ autoclaw "Deploy and report" -y -n --json
 ```
 Token usage is collected only when `AUTOCLOW_INCLUDE_USAGE=1` (or `true`) is set — it is opt-in because not every OpenAI-compatible provider accepts `stream_options.include_usage`.
 
+### Batch Mode (Swarm Worker)
+Feed a JSONL manifest of tasks; each task runs in a fresh, isolated agent (one task's context never leaks into another) and per-task results are written as JSONL:
+```bash
+autoclaw batch tasks.jsonl -y                          # results -> tasks.results.jsonl
+autoclaw batch tasks.jsonl -o out.jsonl --fail-fast
+```
+Manifest lines are `{"id": "...", "task": "..."}` — `id` is optional (defaults to `task-N`); blank lines and `#` comments are skipped. Optional per-task overrides: `maxSteps`, `model`, `provider`.
+
+One failing task does not stop the batch (use `--fail-fast` for that). The process exits `0` when every task completed, `1` otherwise, so cron and K8s Jobs can detect bad batches. Task output stays human-readable on stdout — the results file is the machine-readable contract, with `status`, `steps`, `message`, `error` and `usage` per task.
+
 ### Auto-Confirm (CI/CD)
 Automatically approve all tool executions (dangerous, use with caution or in sandboxes).
 ```bash

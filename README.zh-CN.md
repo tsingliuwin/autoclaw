@@ -112,6 +112,16 @@ autoclaw "执行部署并汇报" -y -n --json
 ```
 Token 用量仅在设置 `AUTOCLOW_INCLUDE_USAGE=1`（或 `true`）时才收集——这是可选项，因为并非所有 OpenAI 兼容端点都接受 `stream_options.include_usage`。
 
+### 批处理模式 (蜂群工人)
+把 JSONL 任务清单交给 AutoClaw；每个任务在全新的隔离 Agent 中执行（任务之间上下文互不污染），结果逐行写入 JSONL 文件：
+```bash
+autoclaw batch tasks.jsonl -y                          # 结果 -> tasks.results.jsonl
+autoclaw batch tasks.jsonl -o out.jsonl --fail-fast
+```
+清单每行为 `{"id": "...", "task": "..."}`——`id` 可省略（默认 `task-N`）；空行和 `#` 注释行会跳过。可选的每任务覆盖项：`maxSteps`、`model`、`provider`。
+
+单个任务失败不会中断批次（需要中断用 `--fail-fast`）。全部完成时进程退出 `0`，否则 `1`，cron 和 K8s Job 由此感知批次成败。任务输出保持人类可读——结果文件才是机器可读契约，含每个任务的 `status`、`steps`、`message`、`error`、`usage`。
+
 ### 自动确认 (CI/CD)
 自动批准所有工具执行（危险操作，请谨慎使用或在沙箱环境下运行）。
 ```bash

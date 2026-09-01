@@ -1,11 +1,15 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.4 (2026-09-01)
 
 ### Added
 - **Sensitive-path guard for file tools**: `read_file`/`write_file` refuse AutoClaw's own `setting.json` (global and project), `~/.autoclaw/.env`, and any `.env*` file unless `--allow-dangerous` — an unattended agent reads web pages and repos, and a prompt injection must not end up reading the local API keys to exfiltrate them.
 - **Run history**: every agent run appends a best-effort JSONL line to `~/.autoclaw/logs/runs.jsonl` (time, model, task excerpt, status, steps, error, usage, duration) for post-hoc debugging of unattended batches.
 - **Task wall-clock timeout**: `config.taskTimeoutMs` / `AUTOCLOW_TASK_TIMEOUT_MS` / per-task `taskTimeoutMs` in batch manifests bound the whole task (aborting in-flight API calls, new `timeout` status mapped to exit 2 like `max_steps`).
+
+## 1.3.3 (2026-09-01)
+
+### Added
 - **`autoclaw doctor`**: headless self-diagnosis — config files, resolved provider/baseUrl/model, API key, a live connection test, resolved shell, registered tools, and playwright browser status; ✓/✗ output and an exit code (0 ready / 1 critical failure). `resolveRuntime` gained an interactive flag so doctor reports a missing key instead of prompting.
 - **Safety gate for destructive shell commands**: even with `--yes`, patterns like `rm -rf`, `rd/del /s`, `Remove-Item -Recurse -Force`, `format`/`diskpart`/`mkfs`, `dd of=`, block-device writes, `shutdown`/`reboot`, and `reg delete` are refused with a message the model can act on. `--allow-dangerous` is the explicit override. Protects unattended runs against destructive instructions reaching the shell (e.g. via prompt injection).
 - **Provider presets `ark` (Volcano Ark)** and **`siliconflow` (SiliconFlow)**, with `ARK_API_KEY` / `SILICONFLOW_API_KEY` env fallbacks.

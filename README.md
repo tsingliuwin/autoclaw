@@ -106,8 +106,16 @@ autoclaw "Refactor src/index.ts to use ES modules" -y
 
 ### CLI Options
 - `-m, --model <model>`: Specify the LLM model (default: `gpt-4o`).
+- `-P, --provider <name>`: Use a provider preset (see [Providers](#providers)).
 - `-n, --no-interactive`: Exit after processing the initial query (Headless mode).
 - `-y, --yes`: Auto-confirm all tool executions (e.g., shell commands).
+
+### Providers
+AutoClaw works with any OpenAI-compatible endpoint. Built-in presets fill in the base URL and a default model for you:
+```bash
+autoclaw -P deepseek "Check disk usage and save a report" -y -n
+```
+Available presets: `openai`, `deepseek`, `moonshot` (Kimi), `dashscope` (Qwen), `zhipu` (GLM), `openrouter`, `ollama` (local). You can still override the model with `-m` or config. When `OPENAI_API_KEY` is not set, the API key is read from the provider's own env var (e.g. `DEEPSEEK_API_KEY`, `MOONSHOT_API_KEY`, `DASHSCOPE_API_KEY`, `ZHIPU_API_KEY`, `OPENROUTER_API_KEY`).
 
 ## Configuration
 
@@ -120,9 +128,12 @@ AutoClaw uses a hierarchical configuration system.
 4.  **Global Config**: (`~/.autoclaw/setting.json`)
 
 ### Supported Configuration Keys (JSON)
+- `provider`: Provider preset name (e.g. `deepseek`).
 - `apiKey`: Your OpenAI API Key.
 - `baseUrl`: Custom Base URL (e.g., for DeepSeek or LocalLLM).
 - `model`: Default model to use.
+- `maxSteps`: Max LLM turns per task before the agent stops (default: `25`).
+- `shellTimeout`: Shell command timeout in milliseconds (default: `120000`).
 - `tavilyApiKey`: API Key for Tavily Web Search.
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
 - `feishuWebhook`, `dingtalkWebhook`, `wecomWebhook`: Notification webhooks.

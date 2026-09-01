@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import { Agent } from './agent.js';
+import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -33,6 +34,7 @@ interface AppConfig {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
+  provider?: string;
   smtpHost?: string;
   smtpPort?: string;
   smtpUser?: string;
@@ -89,6 +91,7 @@ program
   .description('A lightweight AI agent CLI tool')
   .version(version)
   .option('-m, --model <model>', 'Model to use')
+  .option('-P, --provider <name>', 'Use a provider preset (openai, deepseek, moonshot, dashscope, zhipu, openrouter, ollama)')
   .option('-n, --no-interactive', 'Exit after processing the initial query (Headless mode)')
   .option('-y, --yes', 'Auto-confirm all tool executions (e.g., shell commands)');
 
@@ -132,6 +135,21 @@ async function runSetup(options: any = {}) {
     return `${secret.slice(0, 3)}...${secret.slice(-4)}`;
   }
 
+  const providerAnswer = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'provider',
+      message: 'Select your LLM provider:',
+      choices: [
+        ...providerNames().map((name) => ({ name: `${PROVIDER_PRESETS[name].label} (${name})`, value: name })),
+        { name: 'Custom OpenAI-compatible endpoint', value: 'custom' }
+      ],
+      default: currentConfig.provider || 'openai'
+    }
+  ]);
+  const provider: string = providerAnswer.provider;
+  const preset = resolveProvider(provider === 'custom' ? undefined : provider);
+
   const answers = await inquirer.prompt([
     {
       type: 'password',
@@ -150,13 +168,13 @@ async function runSetup(options: any = {}) {
       type: 'input',
       name: 'baseUrl',
       message: 'Enter API Base URL:',
-      default: currentConfig.baseUrl || 'https://api.openai.com/v1'
+      default: currentConfig.baseUrl || preset?.baseUrl || 'https://api.openai.com/v1'
     },
     {
       type: 'input',
       name: 'model',
       message: 'Enter default Model:',
-      default: currentConfig.model || 'gpt-4o'
+      default: currentConfig.model || preset?.defaultModel || 'gpt-4o'
     },
     {
       type: 'confirm',
@@ -361,6 +379,7 @@ async function runSetup(options: any = {}) {
     apiKey: finalApiKey,
     baseUrl: answers.baseUrl,
     model: answers.model,
+    provider: provider === 'custom' ? undefined : provider,
     ...imageConfig,
     ...emailConfig,
     ...searchConfig,
@@ -399,10 +418,17 @@ async function runChat(queryParts: string[], options: any) {
   // Priority: Local > Global
   const fullConfig = { ...globalConfig, ...localConfig };
 
-  // 4. Resolve Env Vars (CLI > Env > Config)
-  let apiKey = process.env.OPENAI_API_KEY || fullConfig.apiKey;
-  let baseURL = process.env.OPENAI_BASE_URL || fullConfig.baseUrl;
-  let model = options.model || process.env.OPENAI_MODEL || fullConfig.model || 'gpt-4o';
+  // 4. Resolve Provider Preset (CLI > Env > Config)
+  const providerName = options.provider || process.env.AUTOCLOW_PROVIDER || fullConfig.provider;
+  const preset = resolveProvider(providerName);
+  if (providerName && !preset) {
+    console.log(chalk.yellow(`Unknown provider '${providerName}'. Known providers: ${providerNames().join(', ')}`));
+  }
+
+  // 5. Resolve Env Vars (CLI > Env > Config > Provider preset)
+  let apiKey = process.env.OPENAI_API_KEY || fullConfig.apiKey || (preset?.apiKeyEnv ? process.env[preset.apiKeyEnv] : undefined);
+  let baseURL = process.env.OPENAI_BASE_URL || fullConfig.baseUrl || preset?.baseUrl;
+  let model = options.model || process.env.OPENAI_MODEL || fullConfig.model || preset?.defaultModel || 'gpt-4o';
   
   // Inject Runtime Flags
   fullConfig.autoConfirm = options.yes;
@@ -434,9 +460,10 @@ async function runChat(queryParts: string[], options: any) {
     if (doSetup) {
       await runSetup();
       const newConfig = loadJsonConfig(GLOBAL_CONFIG_FILE);
-      apiKey = newConfig.apiKey;
-      baseURL = newConfig.baseUrl;
-      model = options.model || newConfig.model || 'gpt-4o';
+      const setupPreset = resolveProvider(newConfig.provider);
+      apiKey = newConfig.apiKey || (setupPreset?.apiKeyEnv ? process.env[setupPreset.apiKeyEnv] : undefined);
+      baseURL = newConfig.baseUrl || setupPreset?.baseUrl;
+      model = options.model || newConfig.model || setupPreset?.defaultModel || 'gpt-4o';
       Object.assign(fullConfig, newConfig);
     } else {
       console.error(chalk.red("API Key is required to proceed."));

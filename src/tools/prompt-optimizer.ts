@@ -38,7 +38,7 @@ export const PromptOptimizerTool: ToolModule = {
 
     try {
       const completion = await client.chat.completions.create({
-        model: config.model || 'gpt-4o',
+        model: config.model || 'gpt-5.6',
         messages: [
           {
             role: "system",

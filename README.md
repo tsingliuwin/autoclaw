@@ -122,7 +122,7 @@ Available presets: `openai`, `deepseek`, `moonshot` (Kimi), `dashscope` (Qwen), 
 AutoClaw uses a hierarchical configuration system.
 
 **Priority Order (Highest to Lowest):**
-1.  **CLI Arguments**: (e.g., `-m gpt-4o`)
+1.  **CLI Arguments**: (e.g., `-m gpt-5.6`)
 2.  **Environment Variables**: (`OPENAI_API_KEY`, `.env` file)
 3.  **Project Config**: (`./.autoclaw/setting.json` in current directory)
 4.  **Global Config**: (`~/.autoclaw/setting.json`)

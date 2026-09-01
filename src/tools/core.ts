@@ -7,6 +7,9 @@ import { execShellCommand } from '../shell.js';
 
 const DEFAULT_SHELL_TIMEOUT_MS = 120000;
 const SHELL_MAX_BUFFER = 10 * 1024 * 1024;
+// Bounded reads keep a huge file from exhausting memory or the model context;
+// the agent-level truncation in truncate.ts applies on top of this.
+const READ_FILE_MAX_BYTES = 1024 * 1024;
 
 export const ShellTool: ToolModule = {
   name: "Shell Execution",
@@ -85,11 +88,27 @@ export const ReadFileTool: ToolModule = {
     }
   },
   handler: async (args: any) => {
+    let fh;
     try {
-      const content = await fs.readFile(args.path, 'utf-8');
+      fh = await fs.open(args.path, 'r');
+      const buf = Buffer.alloc(READ_FILE_MAX_BYTES);
+      const { bytesRead } = await fh.read(buf, 0, READ_FILE_MAX_BYTES, 0);
+      const slice = buf.subarray(0, bytesRead);
+      // NUL bytes are the reliable tell for binary content; returning them
+      // as "utf-8" would only hand the model mojibake.
+      if (slice.includes(0)) {
+        return `Error: ${args.path} looks like a binary file (${bytesRead} bytes read). Inspect it with execute_shell_command instead (e.g. strings, xxd, file).`;
+      }
+      const content = slice.toString('utf-8');
+      if (bytesRead === READ_FILE_MAX_BYTES) {
+        const { size } = await fh.stat();
+        return `${content}\n[AutoClaw] File truncated at ${READ_FILE_MAX_BYTES} bytes (file is ${size} bytes). Use execute_shell_command to read specific ranges.`;
+      }
       return content;
     } catch (error: any) {
       return `Error reading file: ${error.message}`;
+    } finally {
+      await fh?.close();
     }
   }
 };

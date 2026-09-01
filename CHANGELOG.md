@@ -15,6 +15,10 @@
 - **Batch `--resume`**: skips tasks already `completed` in the results file and carries their results over — `--fail-fast` then `--resume` forms a natural retry loop.
 - **Batch `-c/--concurrency <n>`**: run up to N tasks in parallel (default: 1, sequential).
 
+### Changed
+- **Per-tool hardening**: `read_file` caps reads at 1MB with a truncation notice and refuses binary files (NUL detection) instead of returning mojibake; all outbound HTTP calls (web search, group notify, image download, setup connection test / model catalog) now time out (15–120s) instead of hanging forever; nodemailer uses explicit connection/greeting/socket timeouts.
+- Performance budget suite runs as part of `npm test`: 1MB file write/read, 50k-line truncation, 1MB decode, and shell spawn each must finish under loose CI-safe latency ceilings (catches unbounded reads and accidental complexity).
+
 ## 1.3.0 (2026-09-01)
 
 ### Added

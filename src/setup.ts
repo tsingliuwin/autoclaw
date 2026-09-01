@@ -23,7 +23,8 @@ export async function testConnection(baseUrl: string, apiKey: string, model: str
     resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], stream: false })
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], stream: false }),
+      signal: AbortSignal.timeout(15000)
     });
   } catch (err: any) {
     return { ok: false, kind: 'network', message: `Cannot reach ${url} (${err?.message ?? err}). Check the Base URL and your network.` };
@@ -50,7 +51,8 @@ export async function testConnection(baseUrl: string, apiKey: string, model: str
 export async function fetchModelIds(baseUrl: string, apiKey: string): Promise<string[] | null> {
   try {
     const resp = await fetch(`${normalizeBaseUrl(baseUrl)}/models`, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {}
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      signal: AbortSignal.timeout(15000)
     });
     if (!resp.ok) return null;
     const data: any = await resp.json();

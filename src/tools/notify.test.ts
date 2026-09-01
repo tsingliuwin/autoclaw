@@ -49,6 +49,48 @@ describe('NotifyTool', () => {
     );
   });
 
+  it('sends dingtalk notification and injects keyword if missing', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ errcode: 0 })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await NotifyTool.handler(
+      { platform: 'dingtalk', content: 'nightly build passed' },
+      { dingtalkWebhook: 'https://hook.example/ding', dingtalkKeyword: 'OPS' }
+    );
+
+    expect(result).toBe('Notification sent to dingtalk successfully.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hook.example/ding',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ msgtype: 'text', text: { content: '[OPS] nightly build passed' } })
+      })
+    );
+  });
+
+  it('sends wecom notification without keyword when none is configured', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({ errcode: 0 })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await NotifyTool.handler(
+      { platform: 'wecom', content: 'all green' },
+      { wecomWebhook: 'https://hook.example/wecom' }
+    );
+
+    expect(result).toBe('Notification sent to wecom successfully.');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hook.example/wecom',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ msgtype: 'text', text: { content: 'all green' } })
+      })
+    );
+  });
+
   it('returns API failure payload for dingtalk/wecom style response', async () => {
     vi.stubGlobal(
       'fetch',

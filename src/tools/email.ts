@@ -37,6 +37,9 @@ export const EmailTool: ToolModule = {
         host: config.smtpHost,
         port: parseInt(config.smtpPort || '587'),
         secure: parseInt(config.smtpPort) === 465, // true for 465, false for other ports
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 120000,
         auth: {
           user: config.smtpUser,
           pass: config.smtpPass,

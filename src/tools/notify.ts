@@ -87,7 +87,8 @@ export const NotifyTool: ToolModule = {
       const response = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000)
       });
 
       const result: any = await response.json();

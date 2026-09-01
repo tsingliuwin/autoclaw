@@ -67,7 +67,7 @@ const toolDefinition = {
 };
 
 async function downloadImage(url: string, destPath: string): Promise<void> {
-  const response = await fetch(url);
+  const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
   if (!response.ok) throw new Error(`Failed to download image: ${response.statusText}`);
   const buffer = await response.arrayBuffer();
   fs.writeFileSync(destPath, Buffer.from(buffer));

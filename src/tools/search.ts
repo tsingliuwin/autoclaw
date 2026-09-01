@@ -46,7 +46,8 @@ export const SearchTool: ToolModule = {
           include_answer: true,
           include_images: false,
           max_results: 5
-        })
+        }),
+        signal: AbortSignal.timeout(30000)
       });
 
       if (!response.ok) {

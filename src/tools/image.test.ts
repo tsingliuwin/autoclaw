@@ -126,4 +126,34 @@ describe('ImageTool', () => {
 
     expect(result).toContain("Unknown mode 'teleport'");
   });
+
+  it('surfaces provider errors as readable messages', async () => {
+    mocks.generateMock.mockRejectedValue(new Error('billing issue'));
+
+    const result = await ImageTool.handler(
+      { mode: 'text-to-image', prompt: 'sunset', model: 'dall-e-2', output_dir: tempDir },
+      { apiKey: 'test-key' }
+    );
+
+    expect(result).toContain('Error generating image');
+    expect(result).toContain('billing issue');
+  });
+
+  it('loops dall-e-3 text-to-image calls for n > 1', async () => {
+    mocks.generateMock.mockResolvedValue({ data: [{ url: 'https://img.example/1.png' }] });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([1]).buffer)
+    }));
+
+    const outDir = path.join(tempDir, 'multi');
+    const result = await ImageTool.handler(
+      { mode: 'text-to-image', prompt: 'logo', model: 'dall-e-3', n: 2, size: '1024x1024', output_dir: outDir },
+      { apiKey: 'test-key' }
+    );
+
+    expect(mocks.generateMock).toHaveBeenCalledTimes(2);
+    expect(result).toContain('Successfully generated 2 image(s):');
+    expect((await fs.readdir(outDir)).length).toBe(2);
+  });
 });

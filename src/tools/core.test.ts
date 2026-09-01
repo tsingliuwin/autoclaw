@@ -40,6 +40,38 @@ describe('core tools', () => {
     expect(result).toContain('Error reading file:');
   });
 
+  it('ReadFileTool truncates large files at 1MB with a notice', async () => {
+    const bigPath = path.join(tempDir, 'big.txt');
+    await fs.writeFile(bigPath, 'a'.repeat(1024 * 1024 + 100), 'utf-8');
+
+    const result = await ReadFileTool.handler({ path: bigPath }, {});
+
+    expect(result).toContain('File truncated at 1048576 bytes');
+    expect(result.length).toBeLessThan(1024 * 1024 + 200);
+  });
+
+  it('ReadFileTool refuses binary files instead of returning mojibake', async () => {
+    const binPath = path.join(tempDir, 'blob.bin');
+    await fs.writeFile(binPath, Buffer.from([0x00, 0x01, 0x00, 0x02]));
+
+    const result = await ReadFileTool.handler({ path: binPath }, {});
+
+    expect(result).toContain('looks like a binary file');
+  });
+
+  it('WriteFileTool overwrites existing content', async () => {
+    const p = path.join(tempDir, 'over.txt');
+    await WriteFileTool.handler({ path: p, content: 'first' }, {});
+    await WriteFileTool.handler({ path: p, content: 'second' }, {});
+
+    expect(await fs.readFile(p, 'utf-8')).toBe('second');
+  });
+
+  it('WriteFileTool reports a readable error for invalid targets', async () => {
+    const result = await WriteFileTool.handler({ path: tempDir, content: 'x' }, {});
+    expect(result).toContain('Error writing file:');
+  });
+
   it('DateTimeTool returns valid JSON with expected fields', async () => {
     const result = await DateTimeTool.handler({}, {});
     const parsed = JSON.parse(result);

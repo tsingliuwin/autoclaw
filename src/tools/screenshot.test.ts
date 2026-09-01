@@ -65,4 +65,33 @@ describe('ScreenshotTool', () => {
       fullPage: true
     });
   });
+
+  it('tries the system Chrome channel first and captures viewport-only when fullPage is false', async () => {
+    const screenshotMock = vi.fn().mockResolvedValue(undefined);
+    const page = {
+      goto: vi.fn().mockResolvedValue(undefined),
+      addStyleTag: vi.fn().mockResolvedValue(undefined),
+      evaluate: vi.fn().mockResolvedValue(undefined),
+      waitForTimeout: vi.fn().mockResolvedValue(undefined),
+      screenshot: screenshotMock
+    };
+    mocks.launchMock.mockResolvedValueOnce({
+      newContext: vi.fn().mockResolvedValue({
+        newPage: vi.fn().mockResolvedValue(page)
+      }),
+      close: vi.fn().mockResolvedValue(undefined)
+    });
+
+    const result = await ScreenshotTool.handler(
+      { url: 'https://example.com', outputPath: 'viewport.png', fullPage: false },
+      {}
+    );
+
+    expect(mocks.launchMock).toHaveBeenCalledWith(expect.objectContaining({ channel: 'chrome' }));
+    expect(screenshotMock).toHaveBeenCalledWith({
+      path: 'viewport.png',
+      fullPage: false
+    });
+    expect(result).toContain('Successfully captured screenshot');
+  });
 });

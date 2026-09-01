@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as nodeOs from 'node:os';
+import * as nodePath from 'node:path';
 
 const mocks = vi.hoisted(() => {
   return {
@@ -39,6 +42,18 @@ vi.mock('ora', () => {
   };
 });
 
+// Redirect ~/.autoclaw/output writes to a temp dir so tests never touch the
+// real user home.
+const homedirMock = vi.hoisted(() => ({ dir: '' }));
+
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>();
+  return {
+    ...actual,
+    homedir: () => homedirMock.dir || actual.homedir()
+  };
+});
+
 // The agent consumes a streamed chat completion (stream: true), so mocks must
 // return an async-iterable of OpenAI delta chunks instead of a full response.
 function streamFrom(chunks: any[]) {
@@ -53,6 +68,16 @@ function streamFrom(chunks: any[]) {
 }
 
 describe('Agent.chat', () => {
+  beforeAll(async () => {
+    homedirMock.dir = await fs.mkdtemp(nodePath.join(nodeOs.tmpdir(), 'autoclaw-agent-home-'));
+  });
+
+  afterAll(async () => {
+    if (homedirMock.dir) {
+      await fs.rm(homedirMock.dir, { recursive: true, force: true });
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getToolDefinitionsMock.mockReturnValue([
@@ -283,6 +308,8 @@ describe('Agent.chat', () => {
     await agent.chat('read big file');
 
     expect(agent.lastOutputFile).toBeTruthy();
+    const savedContent = await fs.readFile(agent.lastOutputFile!, 'utf-8');
+    expect(savedContent).toBe(hugeOutput);
     const secondCallArgs = mocks.createMock.mock.calls[1][0];
     const toolMessage = secondCallArgs.messages.find(
       (m: any) => m.role === 'tool' && m.tool_call_id === 'call-huge'

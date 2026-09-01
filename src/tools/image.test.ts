@@ -81,4 +81,49 @@ describe('ImageTool', () => {
     expect(files.length).toBe(1);
     expect(files[0]).toMatch(/^generated-\d+-1\.png$/);
   });
+
+  it('creates a variation from an existing image', async () => {
+    const src = path.join(tempDir, 'src.png');
+    await fs.writeFile(src, 'png-bytes');
+    mocks.createVariationMock.mockResolvedValue({ data: [{ url: 'https://img.example/v.png' }] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([9]).buffer) })
+    );
+
+    const result = await ImageTool.handler({ image_path: src, output_dir: tempDir }, { apiKey: 'test-key' });
+
+    expect(mocks.createVariationMock).toHaveBeenCalledTimes(1);
+    expect(result).toContain('Successfully generated 1 image(s):');
+    const files = await fs.readdir(tempDir);
+    expect(files.some(f => f.startsWith('variation-'))).toBe(true);
+  });
+
+  it('edits an image with prompt and mask', async () => {
+    const src = path.join(tempDir, 'src.png');
+    const mask = path.join(tempDir, 'mask.png');
+    await fs.writeFile(src, 'png-bytes');
+    await fs.writeFile(mask, 'mask-bytes');
+    mocks.editMock.mockResolvedValue({ data: [{ url: 'https://img.example/e.png' }] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, arrayBuffer: vi.fn().mockResolvedValue(new Uint8Array([7]).buffer) })
+    );
+
+    const result = await ImageTool.handler(
+      { image_path: src, mask_path: mask, prompt: 'add a hat', output_dir: tempDir },
+      { apiKey: 'test-key' }
+    );
+
+    expect(mocks.editMock).toHaveBeenCalledWith(expect.objectContaining({ prompt: 'add a hat' }));
+    expect(result).toContain('Successfully generated 1 image(s):');
+    const files = await fs.readdir(tempDir);
+    expect(files.some(f => f.startsWith('edited-'))).toBe(true);
+  });
+
+  it('rejects an unknown mode', async () => {
+    const result = await ImageTool.handler({ mode: 'teleport', prompt: 'x' }, { apiKey: 'test-key' });
+
+    expect(result).toContain("Unknown mode 'teleport'");
+  });
 });

@@ -441,6 +441,25 @@ describe('Agent.chat', () => {
       expect(m.content).toHaveLength(2000);
     }
   });
+
+  it('appends a best-effort run record to ~/.autoclaw/logs/runs.jsonl', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock.mockResolvedValueOnce(streamFrom([{ content: 'logged' }]));
+
+    const agent = new Agent('test-key', undefined, 'test-model', {});
+    const result = await agent.chat('history marker XYZ');
+
+    expect(result.status).toBe('completed');
+    const logPath = nodePath.join(homedirMock.dir, '.autoclaw', 'logs', 'runs.jsonl');
+    const lines = (await fs.readFile(logPath, 'utf-8')).trim().split('\n').map(l => JSON.parse(l));
+    const mine = lines.find((l: any) => l.task === 'history marker XYZ');
+    expect(mine).toMatchObject({ status: 'completed', model: 'test-model', steps: 1 });
+    expect(typeof mine.time).toBe('string');
+    expect(typeof mine.durationMs).toBe('number');
+  });
 });
 
 describe('system prompt shell guidance', () => {

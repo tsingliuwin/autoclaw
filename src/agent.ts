@@ -128,6 +128,7 @@ RULES OF ENGAGEMENT:
     this.messages.push({ role: "user", content: userInput });
 
     const maxSteps = Number(this.config?.maxSteps || process.env.AUTOCLOW_MAX_STEPS || DEFAULT_MAX_STEPS);
+    const startedAt = Date.now();
     let active = true;
     let step = 0;
     let status: AgentRunResult['status'] = 'completed';
@@ -383,8 +384,32 @@ RULES OF ENGAGEMENT:
       ...(errorMessage ? { error: errorMessage } : {}),
       ...(sawUsage ? { usage: totalUsage } : {})
     };
+    this.appendRunLog(userInput, result, startedAt);
     this.emitEvent({ event: 'run_end', ...result });
     return result;
+  }
+
+  // Best-effort local run history: ~/.autoclaw/logs/runs.jsonl, one line
+  // per run, for post-hoc debugging of unattended batches. Logging must
+  // never fail a run.
+  private appendRunLog(userInput: string, result: AgentRunResult, startedAt: number): void {
+    try {
+      const dir = path.join(os.homedir(), '.autoclaw', 'logs');
+      fs.mkdirSync(dir, { recursive: true });
+      const line = JSON.stringify({
+        time: new Date().toISOString(),
+        model: this.model,
+        task: String(userInput).slice(0, 200),
+        status: result.status,
+        steps: result.steps,
+        ...(result.error ? { error: result.error.slice(0, 300) } : {}),
+        ...(result.usage ? { usage: result.usage } : {}),
+        durationMs: Date.now() - startedAt
+      });
+      fs.appendFileSync(path.join(dir, 'runs.jsonl'), line + '\n');
+    } catch {
+      // ignore
+    }
   }
 
   // Every turn resends the full history, so early large tool results

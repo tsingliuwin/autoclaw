@@ -49,6 +49,8 @@ interface AppConfig {
   imageStyle?: string;
   imageN?: number;
   autoConfirm?: boolean;
+  jsonMode?: boolean;
+  includeUsage?: boolean;
   feishuWebhook?: string;
   feishuKeyword?: string;
   dingtalkWebhook?: string;

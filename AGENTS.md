@@ -1,4 +1,6 @@
-# Project: AutoClaw
+# AGENTS.md
+
+Guidance for AI coding agents (and humans) working in this repository.
 
 ## Project Overview
 **AutoClaw** is a hyper-lightweight AI agent designed for **massive scale automation** in **headless/containerized environments**.
@@ -11,12 +13,14 @@ It serves as the ideal "runtime" for executing LLM-driven tasks within Docker co
 - **Massive Scalability**: Low resource footprint enables high-concurrency swarms.
 - **Headless & Non-Interactive**: Zero GUI dependencies; optimized for CI/CD and Clusters.
 
+Guard these properties when making changes: no new heavy dependencies, no interactive requirements on the headless path, and no features that assume a human is watching.
+
 ## Technology Stack
 - **Runtime**: Node.js
 - **Language**: TypeScript
 - **Framework**: Commander.js
 - **UI**: Inquirer (interactivity), Chalk (styling), Ora (spinners)
-- **AI**: OpenAI SDK
+- **AI**: OpenAI SDK (any OpenAI-compatible endpoint)
 
 ## Directory Structure
 - `src/`: Source code
@@ -32,7 +36,7 @@ It serves as the ideal "runtime" for executing LLM-driven tasks within Docker co
 
 ### Prerequisites
 - Node.js installed.
-- OpenAI API Key (or compatible provider like DeepSeek, LocalLLM).
+- OpenAI API Key (or a compatible provider like DeepSeek, Kimi, Qwen, GLM).
 
 ### Installation (Development)
 1.  Install dependencies:
@@ -62,8 +66,8 @@ npm update -g autoclaw
 AutoClaw uses a hierarchical configuration system.
 
 **Priority Order:**
-1.  **CLI Arguments**: (`-m`)
-2.  **Environment Variables**: (`.env`, System Vars)
+1.  **CLI Arguments**: (`-m`, `-P`)
+2.  **Environment Variables**: (`OPENAI_API_KEY`, `AUTOCLOW_*`, system vars)
 3.  **Project Config**: (`./.autoclaw/setting.json`)
 4.  **Global Config**: (`~/.autoclaw/setting.json`)
 
@@ -83,10 +87,8 @@ Or use the CLI command if installed globally:
 autoclaw
 ```
 
-## Features
-- **Natural Language Command Execution**: "List all markdown files in this folder."
-- **File Management**: "Create a new file called test.txt with 'Hello World'."
-- **Providers**: Built-in presets for DeepSeek, Kimi, Qwen, GLM, OpenRouter and Ollama via `-P`.
-- **Safety**: Shell commands require user confirmation unless `--yes` is passed; without an interactive terminal they are denied instead of hanging.
-- **Reliability**: Max-step cap, API retries with backoff, shell timeouts and tool-output truncation.
-- **Context Aware**: Automatically detects OS and environment.
+## Conventions for Changes
+- Before committing, run `npm test` and `npm run build`; both must pass.
+- New tools should follow the `ToolModule` pattern in `src/tools/interface.ts` and be registered in `src/tools/index.ts`, with unit tests and mocked external services.
+- Keep external services mocked in tests; the suite must never require network access or API keys.
+- Documentation (README.md / README.zh-CN.md) must state what the code actually does — keep claims in sync with behavior, and mirror changes in both languages.

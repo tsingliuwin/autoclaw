@@ -3,6 +3,7 @@ import { ToolModule } from './interface.js';
 export const SearchTool: ToolModule = {
   name: "Web Search (Tavily)",
   configKeys: ["tavilyApiKey"],
+  isAvailable: (config: any) => !!(config?.tavilyApiKey || process.env.TAVILY_API_KEY),
   definition: {
     type: "function",
     function: {

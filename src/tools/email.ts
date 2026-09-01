@@ -4,6 +4,7 @@ import { ToolModule } from './interface.js';
 export const EmailTool: ToolModule = {
   name: "Email Service",
   configKeys: ["smtpHost", "smtpPort", "smtpUser", "smtpPass", "smtpFrom"],
+  isAvailable: (config: any) => !!(config?.smtpHost && config?.smtpUser && config?.smtpPass),
   definition: {
     type: "function",
     function: {

@@ -3,10 +3,14 @@ import { ToolModule } from './interface.js';
 export const NotifyTool: ToolModule = {
   name: "Group Bot Notification",
   configKeys: [
-    "feishuWebhook", "feishuKeyword", 
-    "dingtalkWebhook", "dingtalkKeyword", 
+    "feishuWebhook", "feishuKeyword",
+    "dingtalkWebhook", "dingtalkKeyword",
     "wecomWebhook", "wecomKeyword"
   ],
+  isAvailable: (config: any) => !!(
+    config?.feishuWebhook || config?.dingtalkWebhook || config?.wecomWebhook ||
+    process.env.FEISHU_WEBHOOK || process.env.DINGTALK_WEBHOOK || process.env.WECOM_WEBHOOK
+  ),
   definition: {
     type: "function",
     function: {

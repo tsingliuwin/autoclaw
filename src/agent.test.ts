@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     createMock: vi.fn(),
     getToolDefinitionsMock: vi.fn(),
     executeToolHandlerMock: vi.fn(),
+    listUnavailableToolsMock: vi.fn(),
     spinnerStopMock: vi.fn(),
     spinnerFailMock: vi.fn(),
     oraFactoryMock: vi.fn()
@@ -33,7 +34,8 @@ vi.mock('openai', () => {
 vi.mock('./tools/index.js', () => {
   return {
     getToolDefinitions: mocks.getToolDefinitionsMock,
-    executeToolHandler: mocks.executeToolHandlerMock
+    executeToolHandler: mocks.executeToolHandlerMock,
+    listUnavailableTools: mocks.listUnavailableToolsMock
   };
 });
 
@@ -84,6 +86,7 @@ describe('Agent.chat', () => {
     mocks.getToolDefinitionsMock.mockReturnValue([
       { type: 'function', function: { name: 'read_file' } }
     ]);
+    mocks.listUnavailableToolsMock.mockReturnValue([]);
     mocks.oraFactoryMock.mockImplementation(() => ({
       start: () => ({
         stop: mocks.spinnerStopMock,
@@ -403,6 +406,40 @@ describe('Agent.chat', () => {
     await agent.chat('x');
 
     expect(mocks.createMock.mock.calls[0][0]).not.toHaveProperty('stream_options');
+  });
+
+  it('trims old tool results from history to bound context growth', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock.mockImplementation(async () =>
+      streamFrom([
+        {
+          tool_calls: [
+            { index: 0, id: `call-${Math.random()}`, type: 'function', function: { name: 'read_file', arguments: '{}' } }
+          ]
+        }
+      ])
+    );
+    mocks.executeToolHandlerMock.mockResolvedValue('x'.repeat(2000));
+
+    const agent = new Agent('test-key', undefined, 'test-model', { maxSteps: 8 });
+    const result = await agent.chat('read a lot');
+
+    expect(result.status).toBe('max_steps');
+    const calls = mocks.createMock.mock.calls;
+    const toolMessagesAt = (k: number) => calls[k][0].messages.filter((m: any) => m.role === 'tool');
+    const last = toolMessagesAt(calls.length - 1);
+    expect(last.length).toBeGreaterThanOrEqual(5);
+    // early results are replaced by a bounded excerpt
+    expect(last[0].content).toContain('older tool output trimmed');
+    expect(last[0].content.length).toBeLessThan(400);
+    // the three most recent results stay intact
+    for (const m of last.slice(-3)) {
+      expect(m.content).not.toContain('older tool output trimmed');
+      expect(m.content).toHaveLength(2000);
+    }
   });
 });
 

@@ -16,4 +16,9 @@ export interface ToolModule {
   configKeys?: string[]; // Keys needed in setting.json (e.g., ["smtpHost", "smtpUser"])
   definition: ToolDefinition; // OpenAI Tool Definition
   handler: (args: any, config?: any) => Promise<string>; // Implementation
+  // When present, a tool is only registered (and only advertised in the
+  // system prompt) if this returns true for the resolved config — every
+  // turn pays for every tool definition, so unconfigured capabilities
+  // should not ride along.
+  isAvailable?: (config: any) => boolean;
 }

@@ -3,6 +3,7 @@ import { ToolModule } from './interface.js';
 
 export const PromptOptimizerTool: ToolModule = {
   name: "Prompt Optimizer",
+  isAvailable: (config: any) => !!(config?.apiKey || process.env.OPENAI_API_KEY),
   definition: {
     type: "function",
     function: {

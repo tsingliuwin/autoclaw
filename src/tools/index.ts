@@ -23,8 +23,16 @@ export const toolRegistry: ToolModule[] = [
   ImageTool
 ];
 
-export function getToolDefinitions() {
-  return toolRegistry.map(t => t.definition);
+export function getToolDefinitions(config?: any) {
+  return toolRegistry
+    .filter(t => !t.isAvailable || t.isAvailable(config ?? {}))
+    .map(t => t.definition);
+}
+
+export function listUnavailableTools(config?: any): string[] {
+  return toolRegistry
+    .filter(t => t.isAvailable && !t.isAvailable(config ?? {}))
+    .map(t => t.definition.function.name);
 }
 
 export async function executeToolHandler(name: string, args: any, fullConfig: any): Promise<string> {
@@ -32,6 +40,6 @@ export async function executeToolHandler(name: string, args: any, fullConfig: an
   if (!tool) {
     return `Error: Tool ${name} not found.`;
   }
-  
+
   return await tool.handler(args, fullConfig);
 }

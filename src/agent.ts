@@ -5,12 +5,13 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as util from 'util';
-import { getToolDefinitions, executeToolHandler } from './tools/index.js';
+import { getToolDefinitions, executeToolHandler, listUnavailableTools } from './tools/index.js';
 import { withRetry } from './retry.js';
 import { truncateOutput } from './truncate.js';
 import { buildShellInfo, resolveShellType } from './shell.js';
 
 const DEFAULT_MAX_STEPS = 25;
+const TOOL_RESULT_TRIM_MARKER = 'older tool output trimmed';
 
 export interface AgentUsage {
   prompt_tokens: number;
@@ -60,6 +61,23 @@ System Information:
         ? `\n8. The shell is Windows PowerShell: use PowerShell syntax — \$( ) works, but && does not in Windows PowerShell 5; use ; or separate tool calls instead.`
         : '';
 
+    // Every turn resends every tool definition, so unconfigured capabilities
+    // are dropped from both the tool array and this capability list.
+    const unavailable = listUnavailableTools(config);
+    const has = (tool: string) => !unavailable.includes(tool);
+    const capabilities = [
+      '- Shell: execute_shell_command — run scripts, install packages, manage processes, interact with the OS',
+      '- Files: read_file / write_file — inspect logs, generate configs, produce reports',
+      has('web_search') ? '- Web: web_search — real-time information lookup' : null,
+      has('read_website') ? '- Web: read_website — extract article content from a URL' : null,
+      has('take_screenshot') ? '- Web: take_screenshot — capture page visuals' : null,
+      has('send_email') ? '- Communication: send_email — SMTP email delivery' : null,
+      has('send_notification') ? '- Communication: send_notification — push to Feishu/DingTalk/WeCom' : null,
+      has('generate_image') ? '- Creation: generate_image — AI image generation (DALL-E compatible)' : null,
+      has('optimize_prompt') ? '- Creation: optimize_prompt — refine raw prompts for creative/complex tasks (recommended before creative work)' : null,
+      '- Utility: get_current_datetime — accurate system time for temporal reasoning'
+    ].filter((line): line is string => line !== null).join('\n');
+
     this.messages = [
       {
         role: "system",
@@ -70,12 +88,7 @@ You may be running on a developer workstation, a headless server, inside a Docke
 ${systemInfo}
 
 WHAT YOU CAN DO:
-- Shell: execute_shell_command — run scripts, install packages, manage processes, interact with the OS
-- Files: read_file / write_file — inspect logs, generate configs, produce reports
-- Web: web_search — real-time information lookup; read_website — extract article content; take_screenshot — capture page visuals
-- Communication: send_email — SMTP email delivery; send_notification — push to Feishu/DingTalk/WeCom
-- Creation: generate_image — AI image generation (DALL-E compatible); optimize_prompt — refine raw prompts for creative/complex tasks
-- Utility: get_current_datetime — accurate system time for temporal reasoning
+${capabilities}
 
 RULES OF ENGAGEMENT:
 1. One shot, not one chat. Produce working results, not conversation. Be terse.
@@ -133,6 +146,7 @@ RULES OF ENGAGEMENT:
         }
         break;
       }
+      this.trimOldToolResults();
       step++;
       const spinner: any = this.jsonMode
         ? { stop() {}, fail() {}, text: '' }
@@ -371,6 +385,25 @@ RULES OF ENGAGEMENT:
     };
     this.emitEvent({ event: 'run_end', ...result });
     return result;
+  }
+
+  // Every turn resends the full history, so early large tool results
+  // dominate context growth. Keep the most recent results intact and bound
+  // older ones to a short excerpt (full output stays on disk via /view when
+  // it was large enough to be saved).
+  private trimOldToolResults(): void {
+    const toolIndexes: number[] = [];
+    this.messages.forEach((m, i) => {
+      if ((m as any).role === 'tool') toolIndexes.push(i);
+    });
+    const cutoff = toolIndexes.length - 3;
+    for (let k = 0; k < cutoff; k++) {
+      const msg: any = this.messages[toolIndexes[k]];
+      if (typeof msg.content === 'string' && msg.content.length > 512 && !msg.content.includes(TOOL_RESULT_TRIM_MARKER)) {
+        const original = msg.content.length;
+        msg.content = `${msg.content.slice(0, 256)}\n[${TOOL_RESULT_TRIM_MARKER}: ${original} bytes total; re-run the tool if you need the full output again]`;
+      }
+    }
   }
 
   private async saveOutput(functionName: string, toolResult: string): Promise<string> {

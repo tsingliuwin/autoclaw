@@ -1,11 +1,22 @@
 import { chromium } from 'playwright';
 import { Readability } from '@mozilla/readability';
 import { JSDOM } from 'jsdom';
+import { createRequire } from 'module';
 import { ToolModule } from './interface.js';
+
+const require = createRequire(import.meta.url);
 
 export const BrowserTool: ToolModule = {
   name: "Web Browser",
   configKeys: [],
+  isAvailable: () => {
+    try {
+      require.resolve('playwright');
+      return true;
+    } catch {
+      return false;
+    }
+  },
   definition: {
     type: "function",
     function: {

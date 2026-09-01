@@ -273,6 +273,7 @@ const handler = async (args: any, config: any): Promise<string> => {
 
 export const ImageTool: ToolModule = {
   name: "Image Generation",
+  isAvailable: (config: any) => !!(config?.imageApiKey || config?.apiKey || process.env.OPENAI_API_KEY),
   definition: toolDefinition as any,
   handler: handler
 };

@@ -1,8 +1,11 @@
 import { chromium } from 'playwright';
 import { ToolModule } from './interface.js';
+import { createRequire } from 'module';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as child_process from 'child_process';
+
+const require = createRequire(import.meta.url);
 
 // Helper to check for common CJK and Emoji font paths on Linux
 const checkLinuxFonts = () => {
@@ -79,6 +82,14 @@ const installFonts = (missing: { cjk: boolean, emoji: boolean }) => {
 export const ScreenshotTool: ToolModule = {
   name: "Screenshot Tool",
   configKeys: [],
+  isAvailable: () => {
+    try {
+      require.resolve('playwright');
+      return true;
+    } catch {
+      return false;
+    }
+  },
   definition: {
     type: "function",
     function: {

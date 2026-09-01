@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.3.1 (2026-09-01)
 
 ### Added
 - **Shell execution layer** (`src/shell.ts`): resolves a concrete shell (Git Bash > PowerShell > cmd on Windows; `config.shell` / `AUTOCLOW_SHELL` override) and drives it via spawn with explicit argv — no more cmd.exe-by-default. Timeouts kill the whole process tree (`taskkill /T /F`), output is decoded as UTF-8 with GBK fallback, and `maxBuffer` overflow truncates instead of throwing.

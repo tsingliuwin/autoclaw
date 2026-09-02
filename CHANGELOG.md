@@ -1,11 +1,19 @@
 # Changelog
 
-## 1.3.4 (2026-09-01)
+## 1.3.5 (2026-09-01)
 
 ### Added
 - **Sandbox modes** for command execution (vocabulary from DeepSeek Harness): `read-only` / `workspace-write` / `danger-full-access` via `config.sandbox` / `AUTOCLOW_SANDBOX`. Backends: bubblewrap on Linux, sandbox-exec on macOS; **Windows has no backend yet and non-default modes fail closed** (the Windows restricted-token rung is planned, following dsh's decision note). Applied to both `execute_shell_command` and background starts.
 - **Repeat-call reminders** (idea from DeepSeek Harness's repeat-tool-reminder): identical consecutive tool calls (name + canonicalized arguments) get an escalating note in the tool result — gentle at the 3rd repeat, detailed with argument preview at the 5th — so the model changes approach early instead of burning turns until the step cap.
 - **Background process tools**: `start_background_process` (runs a long-lived command detached, output to a log file), `check_background_process` (status + log tail) and `stop_background_process` (tree kill). The destructive-command safety gate applies to background starts too.
+- **Safety notice** (`SAFETY.md`, en/zh): what AutoClaw can do, what each guardrail does and does not do, and responsible-use guidance.
+
+### Changed
+- **Shell layer no longer loads the bash profile**: measured on a real Windows machine, `bash -l` cost ~511ms per command vs 48ms with `--noprofile --norc`. Git's `usr/bin`/`mingw64/bin` are prepended to the child PATH at spawn time instead, so Unix tools still resolve; median per-command time dropped from ~600ms to ~135ms on the dev machine. Applies to foreground and background execution.
+
+## 1.3.4 (2026-09-01)
+
+### Added
 - **Sensitive-path guard for file tools**: `read_file`/`write_file` refuse AutoClaw's own `setting.json` (global and project), `~/.autoclaw/.env`, and any `.env*` file unless `--allow-dangerous` — an unattended agent reads web pages and repos, and a prompt injection must not end up reading the local API keys to exfiltrate them.
 - **Run history**: every agent run appends a best-effort JSONL line to `~/.autoclaw/logs/runs.jsonl` (time, model, task excerpt, status, steps, error, usage, duration) for post-hoc debugging of unattended batches.
 - **Task wall-clock timeout**: `config.taskTimeoutMs` / `AUTOCLOW_TASK_TIMEOUT_MS` / per-task `taskTimeoutMs` in batch manifests bound the whole task (aborting in-flight API calls, new `timeout` status mapped to exit 2 like `max_steps`).

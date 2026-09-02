@@ -438,9 +438,11 @@ describe('Agent.chat', () => {
     expect(last[0].content).toContain('older tool output trimmed');
     expect(last[0].content.length).toBeLessThan(400);
     // the three most recent results stay intact
+    // the three most recent results keep their full payload
+    // (plus any repeat-reminder suffix from identical calls)
     for (const m of last.slice(-3)) {
       expect(m.content).not.toContain('older tool output trimmed');
-      expect(m.content).toHaveLength(2000);
+      expect(m.content.startsWith('x'.repeat(2000))).toBe(true);
     }
   });
 
@@ -488,6 +490,59 @@ describe('Agent.chat', () => {
     expect(result.status).toBe('timeout');
     expect(mocks.createMock).toHaveBeenCalledTimes(1);
     expect(result.error).toBeUndefined();
+  });
+
+  it('appends escalating reminders when the identical tool call repeats', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    mocks.createMock.mockImplementation(async () =>
+      streamFrom([
+        {
+          tool_calls: [
+            { index: 0, id: `call-${Math.random()}`, type: 'function', function: { name: 'read_file', arguments: '{"path":"same.txt"}' } }
+          ]
+        }
+      ])
+    );
+    mocks.executeToolHandlerMock.mockResolvedValue('same content');
+
+    const agent = new Agent('test-key', undefined, 'test-model', { maxSteps: 5 });
+    await agent.chat('stuck loop');
+
+    const calls = mocks.createMock.mock.calls;
+    const toolMessagesAtLast = calls[calls.length - 1][0].messages.filter((m: any) => m.role === 'tool');
+    // turns 1..5 executed; reminders start at the 3rd identical call
+    expect(toolMessagesAtLast[0].content).not.toContain('identical');
+    expect(toolMessagesAtLast[2].content).toContain('3th identical read_file call');
+    expect(toolMessagesAtLast[4].content).toContain('5 times in a row');
+    expect(toolMessagesAtLast[4].content).toContain('"path":"same.txt"');
+  });
+
+  it('resets the repeat counter when the tool call changes', async () => {
+    const { Agent } = await import('./agent.js');
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    let turn = 0;
+    mocks.createMock.mockImplementation(async () => {
+      turn++;
+      const call = turn % 2 === 1
+        ? { index: 0, id: `c${turn}`, type: 'function', function: { name: 'read_file', arguments: '{"path":"a.txt"}' } }
+        : { index: 0, id: `c${turn}`, type: 'function', function: { name: 'write_file', arguments: '{"path":"b.txt","content":"x"}' } };
+      return streamFrom([{ tool_calls: [call] }]);
+    });
+    mocks.executeToolHandlerMock.mockResolvedValue('ok');
+
+    const agent = new Agent('test-key', undefined, 'test-model', { maxSteps: 6 });
+    await agent.chat('alternating calls');
+
+    const calls = mocks.createMock.mock.calls;
+    const toolMessages = calls[calls.length - 1][0].messages.filter((m: any) => m.role === 'tool');
+    for (const m of toolMessages) {
+      expect(m.content).not.toContain('identical');
+    }
   });
 });
 

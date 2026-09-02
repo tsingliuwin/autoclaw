@@ -13,6 +13,21 @@ import { buildShellInfo, resolveShellType } from './shell.js';
 const DEFAULT_MAX_STEPS = 25;
 const TOOL_RESULT_TRIM_MARKER = 'older tool output trimmed';
 
+// Canonical JSON: sorted object keys, so equivalent arguments from
+// different model turns map to the same repeat signature.
+function canonicalArgs(args: any): string {
+  try {
+    return JSON.stringify(args, (_key, value) => {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return Object.keys(value).sort().reduce((acc: any, k) => { acc[k] = value[k]; return acc; }, {});
+      }
+      return value;
+    });
+  } catch {
+    return String(args);
+  }
+}
+
 export interface AgentUsage {
   prompt_tokens: number;
   completion_tokens: number;
@@ -143,6 +158,8 @@ RULES OF ENGAGEMENT:
     let status: AgentRunResult['status'] = 'completed';
     let errorMessage: string | undefined;
     let lastContent: string | null = null;
+    let lastToolSignature: string | null = null;
+    let consecutiveRepeats = 0;
     const totalUsage: AgentUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
     let sawUsage = false;
 
@@ -357,6 +374,18 @@ RULES OF ENGAGEMENT:
           const truncation = truncateOutput(toolResult);
           const boundedResult = truncation.content;
           const resultLines = boundedResult.split('\n');
+
+          // Loop hygiene (idea from dsh repeat-tool-reminder): identical
+          // consecutive calls get an escalating reminder so the model changes
+          // approach early instead of burning turns until the step cap.
+          const signature = `${functionName}:${canonicalArgs(functionArgs)}`;
+          if (signature === lastToolSignature) consecutiveRepeats++;
+          else { consecutiveRepeats = 1; lastToolSignature = signature; }
+          const repeatSuffix = consecutiveRepeats < 3
+            ? ''
+            : consecutiveRepeats < 5
+              ? `\n[AutoClaw] Note: this is the ${consecutiveRepeats}th identical ${functionName} call in a row. If it keeps returning the same result, change approach instead of repeating it.`
+              : `\n[AutoClaw] You have now made the identical ${functionName} call ${consecutiveRepeats} times in a row (arguments: ${JSON.stringify(functionArgs).slice(0, 120)}). This exact call keeps returning the same result. Stop retrying it: change approach, fix the underlying problem, or finish the task with what you already have.`;
           let outputFile: string | null = null;
 
           if (resultLines.length > MAX_PREVIEW_LINES || truncation.truncated) {
@@ -391,7 +420,7 @@ RULES OF ENGAGEMENT:
           this.messages.push({
             role: "tool",
             tool_call_id: toolCall.id,
-            content: boundedResult
+            content: boundedResult + repeatSuffix
           });
         }
       } else {

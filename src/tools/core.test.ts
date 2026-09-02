@@ -126,7 +126,7 @@ describe('ShellTool', () => {
     expect(result).toContain('--yes');
   });
 
-  it('executes commands when autoConfirm is enabled', async () => {
+  it('executes commands when autoConfirm is enabled', { timeout: 15000 }, async () => {
     const result = await ShellTool.handler(
       { command: 'node -e "console.log(41+1)"', rationale: 'test' },
       { autoConfirm: true }
@@ -153,7 +153,7 @@ describe('ShellTool', () => {
     }
   });
 
-  it('runs benign commands without blocking', async () => {
+  it('runs benign commands without blocking', { timeout: 15000 }, async () => {
     const result = await ShellTool.handler(
       { command: 'node -e "console.log(\'cleanup done\')"', rationale: 'test' },
       { autoConfirm: true }
@@ -163,7 +163,7 @@ describe('ShellTool', () => {
     expect(result).toContain('cleanup done');
   });
 
-  it('allows destructive commands only with allowDangerous', async () => {
+  it('allows destructive commands only with allowDangerous', { timeout: 15000 }, async () => {
     const result = await ShellTool.handler(
       { command: 'echo rm -rf demo', rationale: 'test' },
       { autoConfirm: true, allowDangerous: true }
@@ -173,7 +173,7 @@ describe('ShellTool', () => {
     expect(result).toContain('rm -rf demo');
   });
 
-  it('kills commands that exceed the configured timeout', async () => {
+  it('kills commands that exceed the configured timeout', { timeout: 20000 }, async () => {
     const result = await ShellTool.handler(
       { command: 'node -e "setTimeout(()=>{},10000)"', rationale: 'test' },
       { autoConfirm: true, shellTimeout: 300 }

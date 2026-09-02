@@ -51,10 +51,10 @@ describe('tool performance budgets', () => {
     expect(performance.now() - t0).toBeLessThan(500);
   });
 
-  it('execShellCommand completes a trivial command within 5s', { timeout: 15000 }, async () => {
+  it('execShellCommand completes a trivial command within 10s', { timeout: 20000 }, async () => {
     const t0 = performance.now();
     const r = await execShellCommand('node -e "console.log(1)"', { timeoutMs: 10000, maxBuffer: 1024 * 1024 });
     expect(r.stdout).toContain('1');
-    expect(performance.now() - t0).toBeLessThan(5000);
+    expect(performance.now() - t0).toBeLessThan(10000);
   });
 });

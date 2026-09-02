@@ -7,6 +7,7 @@ import { BrowserTool } from './browser.js';
 import { ScreenshotTool } from './screenshot.js';
 import { ImageTool } from './image.js';
 import { PromptOptimizerTool } from './prompt-optimizer.js';
+import { CheckBackgroundProcessTool, StartBackgroundProcessTool, StopBackgroundProcessTool } from './background.js';
 
 // Central Registry of all available tools
 export const toolRegistry: ToolModule[] = [
@@ -20,7 +21,10 @@ export const toolRegistry: ToolModule[] = [
   NotifyTool,
   BrowserTool,
   ScreenshotTool,
-  ImageTool
+  ImageTool,
+  StartBackgroundProcessTool,
+  CheckBackgroundProcessTool,
+  StopBackgroundProcessTool
 ];
 
 export function getToolDefinitions(config?: any) {

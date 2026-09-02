@@ -86,6 +86,7 @@ System Information:
       has('web_search') ? '- Web: web_search — real-time information lookup' : null,
       has('read_website') ? '- Web: read_website — extract article content from a URL' : null,
       has('take_screenshot') ? '- Web: take_screenshot — capture page visuals' : null,
+      has('start_background_process') ? '- Processes: start_background_process / check_background_process / stop_background_process — run long-lived commands (servers, watchers) in the background and poll their output' : null,
       has('send_email') ? '- Communication: send_email — SMTP email delivery' : null,
       has('send_notification') ? '- Communication: send_notification — push to Feishu/DingTalk/WeCom' : null,
       has('generate_image') ? '- Creation: generate_image — AI image generation (DALL-E compatible)' : null,

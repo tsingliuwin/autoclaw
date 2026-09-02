@@ -3,6 +3,8 @@
 ## 1.3.4 (2026-09-01)
 
 ### Added
+- **Repeat-call reminders** (idea from DeepSeek Harness's repeat-tool-reminder): identical consecutive tool calls (name + canonicalized arguments) get an escalating note in the tool result — gentle at the 3rd repeat, detailed with argument preview at the 5th — so the model changes approach early instead of burning turns until the step cap.
+- **Background process tools**: `start_background_process` (runs a long-lived command detached, output to a log file), `check_background_process` (status + log tail) and `stop_background_process` (tree kill). The destructive-command safety gate applies to background starts too.
 - **Sensitive-path guard for file tools**: `read_file`/`write_file` refuse AutoClaw's own `setting.json` (global and project), `~/.autoclaw/.env`, and any `.env*` file unless `--allow-dangerous` — an unattended agent reads web pages and repos, and a prompt injection must not end up reading the local API keys to exfiltrate them.
 - **Run history**: every agent run appends a best-effort JSONL line to `~/.autoclaw/logs/runs.jsonl` (time, model, task excerpt, status, steps, error, usage, duration) for post-hoc debugging of unattended batches.
 - **Task wall-clock timeout**: `config.taskTimeoutMs` / `AUTOCLOW_TASK_TIMEOUT_MS` / per-task `taskTimeoutMs` in batch manifests bound the whole task (aborting in-flight API calls, new `timeout` status mapped to exit 2 like `max_steps`).

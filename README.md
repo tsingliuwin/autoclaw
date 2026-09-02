@@ -34,7 +34,8 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - 📜 **Headless Execution**: No GUI required — pure terminal efficiency. Core operation is shell + file I/O; the optional web tools run in headless Chromium.
 - 🤖 **Non-Interactive Mode**: Intelligent flag handling (`-y`, `--no-interactive`) for zero-touch automation.
 - 📂 **Universal Control**: From simple file I/O to complex system administration.
-- 🛡️ **Runaway Protection**: Max-step cap per task, API retries with exponential backoff, shell command timeouts, and tool output truncation to keep the model context bounded.
+- 🖥️ **Background Processes**: start long-lived commands (dev servers, watchers) detached and poll their output without blocking the run.
+- 🛡️ **Safety Rails**: destructive-command gate, credential-file guard, step cap, wall-clock timeout, and API retries — designed for machines nobody is watching.
 - 🧠 **Context Aware**: Provides accurate OS, system and time context so relative dates ("today", "next Monday") are handled correctly.
 - 🌐 **Web Search**: Integrated with Tavily for real-time information retrieval.
 - 🌍 **Web Reading & Screenshots**: Extract article content and capture page screenshots (requires `npx playwright install chromium`).

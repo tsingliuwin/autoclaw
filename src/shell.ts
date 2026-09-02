@@ -71,25 +71,42 @@ export interface ShellExecResult {
   truncated: boolean;
 }
 
-export function execShellCommand(command: string, opts: { timeoutMs: number; maxBuffer: number }): Promise<ShellExecResult> {
+export function shellInvocation(command: string): { file: string; args: string[] } {
   const type = resolveShellType();
-  let file: string;
-  let args: string[];
   if (type === 'bash') {
     // -l sources the profile so Git Bash's /usr/bin lands on PATH and Unix
     // tools (ls, grep, ...) actually resolve.
-    file = getBashPath()!;
-    args = ['-l', '-c', command];
-  } else if (type === 'powershell') {
-    file = 'powershell.exe';
-    args = ['-NoProfile', '-Command', command];
-  } else if (type === 'cmd') {
-    file = process.env.ComSpec || 'cmd.exe';
-    args = ['/d', '/s', '/c', command];
-  } else {
-    file = '/bin/sh';
-    args = ['-c', command];
+    return { file: getBashPath()!, args: ['-l', '-c', command] };
   }
+  if (type === 'powershell') {
+    return { file: 'powershell.exe', args: ['-NoProfile', '-Command', command] };
+  }
+  if (type === 'cmd') {
+    return { file: process.env.ComSpec || 'cmd.exe', args: ['/d', '/s', '/c', command] };
+  }
+  return { file: '/bin/sh', args: ['-c', command] };
+}
+
+export function killProcessTree(pid: number): void {
+  if (process.platform !== 'win32') {
+    // The negative pid targets the detached process group.
+    try {
+      process.kill(-pid, 'SIGKILL');
+    } catch {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {
+        // already gone
+      }
+    }
+    return;
+  }
+  spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
+}
+
+export function execShellCommand(command: string, opts: { timeoutMs: number; maxBuffer: number }): Promise<ShellExecResult> {
+  const type = resolveShellType();
+  const { file, args } = shellInvocation(command);
 
   return new Promise(resolve => {
     const stdout: Buffer[] = [];
@@ -113,18 +130,7 @@ export function execShellCommand(command: string, opts: { timeoutMs: number; max
       });
     };
     const killTree = () => {
-      if (!child.pid) return;
-      if (posix) {
-        try {
-          process.kill(-child.pid, 'SIGKILL');
-        } catch {
-          child.kill('SIGKILL');
-        }
-      } else {
-        // Terminating the shell alone would orphan grandchildren, whose
-        // inherited stdio pipes keep 'close' pending — kill the whole tree.
-        spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
-      }
+      if (child.pid) killProcessTree(child.pid);
     };
     const timer = setTimeout(() => {
       timedOut = true;

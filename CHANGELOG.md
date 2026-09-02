@@ -30,6 +30,7 @@
 - Performance budget suite runs as part of `npm test`: 1MB file write/read, 50k-line truncation, 1MB decode, and shell spawn each must finish under loose CI-safe latency ceilings.
 
 ### Changed
+- **Shell layer no longer loads the bash profile**: measured on a real Windows machine, `bash -l` cost ~511ms per command vs 48ms with `--noprofile --norc` — a 16-turn task running 10 shell commands wasted ~4.6s. Git's `usr/bin`/`mingw64/bin` are now prepended to the child PATH at spawn time, so Unix tools still resolve at ~135ms median per command (was ~600ms). Applied to foreground and background execution.
 - **Per-tool hardening**: `read_file` caps reads at 1MB with a truncation notice and refuses binary files (NUL detection) instead of returning mojibake; all outbound HTTP calls (web search, group notify, image download, setup connection test / model catalog) now time out (15–120s) instead of hanging forever; nodemailer uses explicit connection/greeting/socket timeouts.
 
 ### Fixed

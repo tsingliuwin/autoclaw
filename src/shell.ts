@@ -1,5 +1,6 @@
 import { spawn, execSync } from 'child_process';
 import * as fs from 'fs';
+import * as path from 'path';
 import type { SandboxInvocation } from './sandbox.js';
 
 // child_process.exec picks cmd.exe on Windows, whose dialect burns agent
@@ -16,6 +17,7 @@ const GIT_BASH_CANDIDATES = [
 
 let cachedType: ShellType | null = null;
 let cachedBashPath: string | null | undefined;
+let cachedBashEnv: NodeJS.ProcessEnv | null = null;
 
 function findBashPath(): string | null {
   if (process.platform === 'win32') {
@@ -38,6 +40,25 @@ function findBashPath(): string | null {
 export function getBashPath(): string | null {
   if (cachedBashPath === undefined) cachedBashPath = findBashPath();
   return cachedBashPath;
+}
+
+// A login shell (-l) would source the profile to put Git's /usr/bin on
+// PATH, but that costs ~450ms per command. Prepending the directories to
+// the child PATH achieves the same tool resolution at spawn speed.
+export function spawnEnv(): NodeJS.ProcessEnv {
+  if (process.platform !== 'win32') return process.env;
+  if (cachedBashEnv) return cachedBashEnv;
+  const env = { ...process.env };
+  const bp = getBashPath();
+  if (bp) {
+    const usrBin = path.dirname(bp);
+    const gitRoot = path.resolve(usrBin, '..', '..');
+    const extra = [usrBin, path.join(gitRoot, 'mingw64', 'bin'), path.join(gitRoot, 'cmd')]
+      .filter(p => fs.existsSync(p));
+    env.PATH = `${extra.join(path.delimiter)}${path.delimiter}${env.PATH ?? ''}`;
+  }
+  cachedBashEnv = env;
+  return env;
 }
 
 export function resolveShellType(config?: any): ShellType {
@@ -75,9 +96,9 @@ export interface ShellExecResult {
 export function shellInvocation(command: string): { file: string; args: string[] } {
   const type = resolveShellType();
   if (type === 'bash') {
-    // -l sources the profile so Git Bash's /usr/bin lands on PATH and Unix
-    // tools (ls, grep, ...) actually resolve.
-    return { file: getBashPath()!, args: ['-l', '-c', command] };
+    // --noprofile/--norc: profile loading costs ~450ms per command; PATH is
+    // handled by spawnEnv() instead.
+    return { file: getBashPath()!, args: ['--noprofile', '--norc', '-c', command] };
   }
   if (type === 'powershell') {
     return { file: 'powershell.exe', args: ['-NoProfile', '-Command', command] };
@@ -120,7 +141,7 @@ export function execShellCommand(
     let truncated = false;
     let settled = false;
     const posix = process.platform !== 'win32';
-    const child = spawn(file, args, { windowsHide: true, detached: posix });
+    const child = spawn(file, args, { windowsHide: true, detached: posix, env: spawnEnv() });
 
     const finish = () => {
       if (settled) return;

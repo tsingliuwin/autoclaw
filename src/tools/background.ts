@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ToolModule } from './interface.js';
-import { killProcessTree, shellInvocation } from '../shell.js';
+import { killProcessTree, shellInvocation, spawnEnv } from '../shell.js';
 import { resolveSandboxMode, sandboxBackend, sandboxedInvocation } from '../sandbox.js';
 import { matchDangerousPattern } from './core.js';
 
@@ -106,6 +106,7 @@ export const StartBackgroundProcessTool: ToolModule = {
       child = spawn(logFile, spawnArgs, {
         windowsHide: true,
         detached: process.platform !== 'win32',
+        env: spawnEnv(),
         stdio: ['ignore', out, out]
       });
     } catch (err: any) {

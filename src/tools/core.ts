@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ToolModule } from './interface.js';
 import { execShellCommand } from '../shell.js';
+import { resolveSandboxMode, sandboxBackend, sandboxedInvocation } from '../sandbox.js';
 import * as os from 'os';
 
 const DEFAULT_SHELL_TIMEOUT_MS = 120000;
@@ -84,6 +85,22 @@ export const ShellTool: ToolModule = {
 
     const timeoutMs = Number(config?.shellTimeout || process.env.AUTOCLOW_SHELL_TIMEOUT || DEFAULT_SHELL_TIMEOUT_MS);
 
+    // Sandbox policy: non-default modes wrap the invocation in a platform
+    // backend, or refuse (fail-closed) when no backend exists.
+    const sandboxMode = resolveSandboxMode(config);
+    let sandboxed;
+    if (sandboxMode !== 'danger-full-access') {
+      const backend = sandboxBackend();
+      if (!backend.available) {
+        return `Error: sandbox mode "${sandboxMode}" is configured but no sandbox backend is available: ${backend.detail}`;
+      }
+      const inv = sandboxedInvocation(args.command, sandboxMode, process.cwd());
+      if ('blocked' in inv) {
+        return `Error: sandbox mode "${sandboxMode}" cannot wrap this command: ${inv.detail}`;
+      }
+      sandboxed = inv;
+    }
+
     // Check for auto-confirm flag
     if (!config?.autoConfirm) {
       if (!process.stdin.isTTY) {
@@ -106,7 +123,7 @@ export const ShellTool: ToolModule = {
     }
 
     try {
-      const r = await execShellCommand(args.command, { timeoutMs, maxBuffer: SHELL_MAX_BUFFER });
+      const r = await execShellCommand(args.command, { timeoutMs, maxBuffer: SHELL_MAX_BUFFER, sandboxed });
       if (r.timedOut) {
         return `Command timed out after ${timeoutMs}ms and was terminated.\nStdout: ${r.stdout}\nStderr: ${r.stderr}`;
       }

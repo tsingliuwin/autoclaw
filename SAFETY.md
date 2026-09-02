@@ -19,6 +19,7 @@ AutoClaw has not undergone a security audit. Incorrect model output, defects, mi
 | Step cap / wall-clock timeout | Bounds how long and how far a run can go | Does not judge what happens within the budget |
 | Tool-result trimming | Keeps long outputs from flooding the model context | Does not sanitize content |
 | Run log | Records what happened for post-hoc debugging | Records locally; it is not an audit service |
+| Sandbox modes | bubblewrap / sandbox-exec confine command writes to the workspace (Linux/macOS) | No Windows backend yet (non-default modes fail closed); no read or network confinement |
 
 `--allow-dangerous` disables the destructive-command gate. Treat any run with it as fully trusted only if you also trust the task and everything the task can read.
 

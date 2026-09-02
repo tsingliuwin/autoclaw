@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { ToolModule } from './interface.js';
 import { killProcessTree, shellInvocation } from '../shell.js';
+import { resolveSandboxMode, sandboxBackend, sandboxedInvocation } from '../sandbox.js';
 import { matchDangerousPattern } from './core.js';
 
 // Long-lived processes for unattended work: start a server or a long build
@@ -62,7 +63,7 @@ export const StartBackgroundProcessTool: ToolModule = {
       }
     }
   },
-  handler: async (args: any) => {
+  handler: async (args: any, config: any) => {
     const command = String(args.command ?? '').trim();
     if (!command) return 'Error: "command" is required.';
 
@@ -70,6 +71,21 @@ export const StartBackgroundProcessTool: ToolModule = {
     const gateLabel = matchDangerousPattern(command);
     if (gateLabel) {
       return `Error: command blocked by AutoClaw safety policy (matched: ${gateLabel}). It was NOT started. If this task genuinely requires it, restart AutoClaw with --allow-dangerous.`;
+    }
+
+    // Same sandbox policy as the foreground shell tool.
+    const sandboxMode = resolveSandboxMode(config);
+    let target = shellInvocation(command);
+    if (sandboxMode !== 'danger-full-access') {
+      const backend = sandboxBackend();
+      if (!backend.available) {
+        return `Error: sandbox mode "${sandboxMode}" is configured but no sandbox backend is available: ${backend.detail}`;
+      }
+      const inv = sandboxedInvocation(command, sandboxMode, process.cwd());
+      if ('blocked' in inv) {
+        return `Error: sandbox mode "${sandboxMode}" cannot wrap this command: ${inv.detail}`;
+      }
+      target = inv;
     }
 
     for (const [id, h] of handles) {
@@ -83,11 +99,11 @@ export const StartBackgroundProcessTool: ToolModule = {
     const logDir = path.join(os.homedir(), '.autoclaw', 'output');
     fs.mkdirSync(logDir, { recursive: true });
     const logPath = path.join(logDir, `bg-${id}.log`);
-    const { file, args: spawnArgs } = shellInvocation(command);
+    const { file: logFile, args: spawnArgs } = target;
     const out = fs.openSync(logPath, 'a');
     let child;
     try {
-      child = spawn(file, spawnArgs, {
+      child = spawn(logFile, spawnArgs, {
         windowsHide: true,
         detached: process.platform !== 'win32',
         stdio: ['ignore', out, out]

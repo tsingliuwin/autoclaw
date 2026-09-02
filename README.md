@@ -172,6 +172,14 @@ autoclaw "Refactor src/index.ts to use ES modules" -y
 ### Diagnostics
 `autoclaw doctor` checks everything headlessly and prints ✓/✗ per item: config files, resolved provider/baseUrl/model, API key, a live connection test, resolved shell, registered tools, and playwright browser status. Exit `0` = ready, `1` = a critical item failed (the failing item is printed). Ideal for CI or a fresh machine.
 
+### Sandbox
+Command execution can be confined with `config.sandbox` / `AUTOCLOW_SANDBOX` (vocabulary borrowed from DeepSeek Harness):
+- `danger-full-access` (default): commands run unconstrained.
+- `workspace-write`: commands can write only inside the current working directory and `/tmp`.
+- `read-only`: commands cannot write anywhere.
+
+Backends: bubblewrap on Linux (`apt install bubblewrap`), `sandbox-exec` on macOS. **Windows has no backend yet** — non-default modes fail closed (commands are refused with a clear error) instead of pretending to confine; run with `danger-full-access` there for now. Reads and network are not confined by this vocabulary.
+
 ### Providers
 AutoClaw works with any OpenAI-compatible endpoint. Built-in presets fill in the base URL and a default model for you:
 ```bash
@@ -197,6 +205,7 @@ AutoClaw uses a hierarchical configuration system.
 - `maxSteps`: Max LLM turns per task before the agent stops (default: `25`).
 - `shellTimeout`: Shell command timeout in milliseconds (default: `120000`).
 - `taskTimeoutMs`: Whole-task wall-clock timeout in milliseconds (off by default; aborts in-flight API calls and stops with `timeout` status).
+- `sandbox`: Confine shell commands (`read-only`, `workspace-write`, `danger-full-access`; default: `danger-full-access`).
 - `shell`: Force a shell for `execute_shell_command` (`bash`, `powershell`, `cmd`, `sh`; default: auto-detect — Git Bash > PowerShell > cmd on Windows).
 - `tavilyApiKey`: API Key for Tavily Web Search.
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
@@ -218,6 +227,7 @@ Create a file at `.autoclaw/setting.json`:
 - `AUTOCLOW_PROVIDER`: provider preset used when `-P` is not passed.
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: reliability limits (max LLM turns per task; shell timeout in ms).
 - `AUTOCLOW_TASK_TIMEOUT_MS`: whole-task wall-clock timeout in ms.
+- `AUTOCLOW_SANDBOX`: confine shell commands (`read-only`, `workspace-write`, `danger-full-access`).
 - `AUTOCLOW_SHELL`: force the shell for shell commands (`bash`, `powershell`, `cmd`, `sh`).
 - `AUTOCLOW_INCLUDE_USAGE`: set to `1`/`true` to request token usage from the API (opt-in).
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: tool credentials as an alternative to setup.

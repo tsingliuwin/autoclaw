@@ -1,5 +1,6 @@
 import { spawn, execSync } from 'child_process';
 import * as fs from 'fs';
+import type { SandboxInvocation } from './sandbox.js';
 
 // child_process.exec picks cmd.exe on Windows, whose dialect burns agent
 // turns (; vs &&, no $(), GBK output). We resolve a concrete shell once and
@@ -104,9 +105,12 @@ export function killProcessTree(pid: number): void {
   spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true });
 }
 
-export function execShellCommand(command: string, opts: { timeoutMs: number; maxBuffer: number }): Promise<ShellExecResult> {
+export function execShellCommand(
+  command: string,
+  opts: { timeoutMs: number; maxBuffer: number; sandboxed?: SandboxInvocation }
+): Promise<ShellExecResult> {
   const type = resolveShellType();
-  const { file, args } = shellInvocation(command);
+  const { file, args } = opts.sandboxed ?? shellInvocation(command);
 
   return new Promise(resolve => {
     const stdout: Buffer[] = [];

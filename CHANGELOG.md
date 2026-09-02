@@ -3,6 +3,7 @@
 ## 1.3.4 (2026-09-01)
 
 ### Added
+- **Sandbox modes** for command execution (vocabulary from DeepSeek Harness): `read-only` / `workspace-write` / `danger-full-access` via `config.sandbox` / `AUTOCLOW_SANDBOX`. Backends: bubblewrap on Linux, sandbox-exec on macOS; **Windows has no backend yet and non-default modes fail closed** (the Windows restricted-token rung is planned, following dsh's decision note). Applied to both `execute_shell_command` and background starts.
 - **Repeat-call reminders** (idea from DeepSeek Harness's repeat-tool-reminder): identical consecutive tool calls (name + canonicalized arguments) get an escalating note in the tool result — gentle at the 3rd repeat, detailed with argument preview at the 5th — so the model changes approach early instead of burning turns until the step cap.
 - **Background process tools**: `start_background_process` (runs a long-lived command detached, output to a log file), `check_background_process` (status + log tail) and `stop_background_process` (tree kill). The destructive-command safety gate applies to background starts too.
 - **Sensitive-path guard for file tools**: `read_file`/`write_file` refuse AutoClaw's own `setting.json` (global and project), `~/.autoclaw/.env`, and any `.env*` file unless `--allow-dangerous` — an unattended agent reads web pages and repos, and a prompt injection must not end up reading the local API keys to exfiltrate them.

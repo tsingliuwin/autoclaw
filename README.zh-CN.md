@@ -172,6 +172,14 @@ autoclaw "将 src/index.ts 重构为使用 ES 模块" -y
 
 ### 诊断
 `autoclaw doctor` 无头完成全面自检,逐项打印 ✓/✗:配置文件、解析出的 provider/baseUrl/model、API key、真实连接测试、解析出的 shell、已注册工具、playwright 浏览器状态。退出 `0` = 就绪,`1` = 有关键项失败(会打印是哪项)。适合 CI 或新机器。
+
+### 沙箱
+命令执行可通过 `config.sandbox` / `AUTOCLOW_SANDBOX` 加以约束(词汇借鉴自 DeepSeek Harness):
+- `danger-full-access`(默认):命令不受约束地运行。
+- `workspace-write`:命令只能在当前工作目录和 `/tmp` 内写入。
+- `read-only`:命令无法在任何位置写入。
+
+后端:Linux 使用 bubblewrap(`apt install bubblewrap`),macOS 使用 `sandbox-exec`。**Windows 暂无后端**——非默认模式会"失败关闭"(直接拒绝命令并给出明确错误),而不是假装约束;在 Windows 上请暂用 `danger-full-access`。此词汇不约束读取与网络。
 - `--json`: 在 stdout 输出 NDJSON 事件流 (供编排器使用,配合 `-n`)。
 
 ### Provider 预设
@@ -199,6 +207,7 @@ AutoClaw 使用层级配置系统。
 - `maxSteps`: 单任务最大 LLM 轮数，超出后自动停止 (默认: `25`)。
 - `shellTimeout`: Shell 命令超时时间（毫秒）(默认: `120000`)。
 - `taskTimeoutMs`: 单任务整体墙钟超时（毫秒，默认关闭；会中断进行中的 API 调用并以 `timeout` 状态停止）。
+- `sandbox`: 约束 shell 命令（`read-only`、`workspace-write`、`danger-full-access`；默认 `danger-full-access`）。
 - `shell`: 强制 `execute_shell_command` 使用的 shell (`bash`、`powershell`、`cmd`、`sh`；默认自动检测——Windows 上优先 Git Bash > PowerShell > cmd)。
 - `tavilyApiKey`: Tavily 网页搜索的 API 密钥。
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP 邮件设置。
@@ -220,6 +229,7 @@ AutoClaw 使用层级配置系统。
 - `AUTOCLOW_PROVIDER`: 未传 `-P` 时使用的 provider 预设。
 - `AUTOCLOW_MAX_STEPS`, `AUTOCLOW_SHELL_TIMEOUT`: 稳定性限制（单任务最大轮数；Shell 超时毫秒数）。
 - `AUTOCLOW_TASK_TIMEOUT_MS`: 单任务整体墙钟超时（毫秒）。
+- `AUTOCLOW_SANDBOX`: 约束 shell 命令（`read-only`、`workspace-write`、`danger-full-access`）。
 - `AUTOCLOW_SHELL`: 强制 shell 命令使用的 shell (`bash`、`powershell`、`cmd`、`sh`)。
 - `AUTOCLOW_INCLUDE_USAGE`: 设为 `1`/`true` 时向 API 请求 token 用量（可选开启）。
 - `TAVILY_API_KEY`, `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`, `FEISHU_WEBHOOK`/`FEISHU_KEYWORD`, `DINGTALK_WEBHOOK`/`DINGTALK_KEYWORD`, `WECOM_WEBHOOK`/`WECOM_KEYWORD`: 工具凭据，可作为 setup 的替代方式。

@@ -1,0 +1,19 @@
+<style>
+  @keyframes pulse-ring {
+    0%   { transform: scale(0.55); opacity: 0.9; }
+    100% { transform: scale(1.5);  opacity: 0; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.12); }
+  }
+</style>
+<div tw="w-full h-full flex items-center justify-center bg-slate-900">
+  <div style="position:absolute;width:200px;height:200px;border-radius:9999px;background:#3b82f6;animation:pulse-ring 1.2s linear infinite"></div>
+  <div style="position:absolute;width:200px;height:200px;border-radius:9999px;background:#3b82f6;animation:pulse-ring 1.2s linear infinite 0.6s"></div>
+  <div tw="w-36 h-36 rounded-3xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center" style="animation:breathe 1.2s ease-in-out infinite">
+    <span tw="text-6xl font-bold text-white" style="font-family:arial">A</span>
+  </div>
+  <div style="position:absolute;margin-top:220px;width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-bottom:30px solid #f59e0b;animation:spin 2s linear infinite"></div>
+</div>

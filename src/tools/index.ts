@@ -7,6 +7,8 @@ import { BrowserTool } from './browser.js';
 import { ScreenshotTool } from './screenshot.js';
 import { ImageTool } from './image.js';
 import { PromptOptimizerTool } from './prompt-optimizer.js';
+import { RenderImageTool } from './render-image.js';
+import { RenderPdfTool } from './render-pdf.js';
 import { CheckBackgroundProcessTool, StartBackgroundProcessTool, StopBackgroundProcessTool } from './background.js';
 
 // Central Registry of all available tools
@@ -22,6 +24,8 @@ export const toolRegistry: ToolModule[] = [
   BrowserTool,
   ScreenshotTool,
   ImageTool,
+  RenderImageTool,
+  RenderPdfTool,
   StartBackgroundProcessTool,
   CheckBackgroundProcessTool,
   StopBackgroundProcessTool

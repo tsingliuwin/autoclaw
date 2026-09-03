@@ -9,6 +9,7 @@ import type { BatchResult, ManifestEntry, ResumeState } from './batch.js';
 import { PROVIDER_PRESETS, providerNames, resolveProvider } from './providers.js';
 import { fetchModelIds, normalizeBaseUrl, testConnection } from './setup.js';
 import { collectDoctorChecks } from './doctor.js';
+import { defaultSkillScopes, discoverSkills, installSkill, installSkillFromUrl, packSkill, removeSkill } from './skills.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -84,7 +85,7 @@ dotenv.config({ path: GLOBAL_ENV_FILE });
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // In dist/index.js, package.json is usually up one level in the root
 const pkgPath = path.join(__dirname, '..', 'package.json');
-let version = '1.3.5';
+let version = '1.3.6';
 
 try {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
@@ -132,6 +133,71 @@ program
   .action(async (manifest, cmdOptions) => {
     const options = program.opts();
     await runBatchCommand(manifest, options, cmdOptions);
+  });
+
+const skillCmd = program
+  .command('skill')
+  .description('Manage skill packages (SKILL.md format, WorkBuddy-store compatible)');
+
+skillCmd
+  .command('list')
+  .description('List discovered skills across builtin / user / project scopes')
+  .action(() => {
+    const { skills, warnings } = discoverSkills(defaultSkillScopes());
+    for (const w of warnings) console.log(chalk.dim(`  ! ${w}`));
+    if (skills.length === 0) {
+      console.log('No skills found. Install one with: autoclaw skill install <zip-or-dir>');
+      return;
+    }
+    console.log(chalk.bold.cyan(`Skills (${skills.length}):\n`));
+    for (const s of skills) {
+      const desc = s.descriptionZh || s.descriptionEn || s.description;
+      console.log(`  ${chalk.bold(s.name)}${s.version ? chalk.dim(` v${s.version}`) : ''} ${chalk.dim(`[${s.source}]`)}`);
+      console.log(`    ${desc.replace(/\s+/g, ' ').slice(0, 100)}${desc.length > 100 ? '…' : ''}`);
+      console.log(`    ${chalk.dim(s.dir)}`);
+    }
+    console.log(chalk.dim('\nSkills run inside chat/batch automatically: the agent sees a skill list and reads a matched SKILL.md on demand.'));
+  });
+
+skillCmd
+  .command('install <target>')
+  .description('Install a skill from an https .zip URL, a local .zip, or a directory (into ~/.autoclaw/skills/)')
+  .action(async (target: string) => {
+    try {
+      const result = /^https:\/\//.test(target)
+        ? await installSkillFromUrl(target)
+        : installSkill(target);
+      console.log(chalk.green(`Installed skill '${result.name}' (${result.files} files) -> ${result.dir}`));
+      console.log(chalk.dim('Verify with: autoclaw skill list'));
+    } catch (err: any) {
+      console.error(chalk.red(`Error: ${err?.message || err}`));
+      process.exitCode = 1;
+    }
+  });
+
+skillCmd
+  .command('remove <name>')
+  .description('Remove a user-installed skill (~/.autoclaw/skills/)')
+  .action((name: string) => {
+    const result = removeSkill(name);
+    if (result === 'removed') console.log(chalk.green(`Removed skill '${name}'.`));
+    else if (result === 'builtin') { console.error(chalk.red(`'${name}' is a built-in skill and cannot be removed.`)); process.exitCode = 1; }
+    else if (result === 'project') { console.error(chalk.red(`'${name}' lives in .autoclaw/skills/ — delete it manually.`)); process.exitCode = 1; }
+    else { console.error(chalk.red(`Skill '${name}' not found.`)); process.exitCode = 1; }
+  });
+
+skillCmd
+  .command('pack <dir>')
+  .description('Package a skill directory into a store-upload zip (skills/<name>/ at zip root)')
+  .option('-o, --output <file>', 'Output zip path (default: <name>-skill.zip in cwd)')
+  .action((dir: string, cmdOptions: { output?: string }) => {
+    try {
+      const result = packSkill(dir, cmdOptions.output);
+      console.log(chalk.green(`Packed '${result.name}' (${result.fileCount} files) -> ${result.zipPath}`));
+    } catch (err: any) {
+      console.error(chalk.red(`Error: ${err?.message || err}`));
+      process.exitCode = 1;
+    }
   });
 
 program

@@ -9,6 +9,7 @@ import { getToolDefinitions, executeToolHandler, listUnavailableTools } from './
 import { withRetry } from './retry.js';
 import { truncateOutput } from './truncate.js';
 import { buildShellInfo, resolveShellType } from './shell.js';
+import { buildSkillsManifest } from './skills.js';
 
 const DEFAULT_MAX_STEPS = 25;
 const TOOL_RESULT_TRIM_MARKER = 'older tool output trimmed';
@@ -94,6 +95,17 @@ System Information:
       '- Utility: get_current_datetime — accurate system time for temporal reasoning'
     ].filter((line): line is string => line !== null).join('\n');
 
+    // Skills ride along as one-line manifest entries; the body is only read
+    // (via read_file) when a task actually matches. Never break startup on
+    // a malformed skill directory.
+    let skillsManifest: string | null = null;
+    try {
+      skillsManifest = buildSkillsManifest(config);
+    } catch {
+      skillsManifest = null;
+    }
+    const skillsBlock = skillsManifest ? `\n${skillsManifest}\n` : '';
+
     this.messages = [
       {
         role: "system",
@@ -105,7 +117,7 @@ ${systemInfo}
 
 WHAT YOU CAN DO:
 ${capabilities}
-
+${skillsBlock}
 RULES OF ENGAGEMENT:
 1. One shot, not one chat. Produce working results, not conversation. Be terse.
 2. Use the right tool for the job. Shell for system ops. Files for content. Web tools for external info.

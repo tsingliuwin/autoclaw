@@ -40,6 +40,8 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - 🌐 **Web Search**: Integrated with Tavily for real-time information retrieval.
 - 🌍 **Web Reading & Screenshots**: Extract article content and capture page screenshots (requires `npx playwright install chromium`).
 - 🎨 **Image Generation**: DALL-E compatible image generation via any OpenAI-compatible images API.
+- 🖼️ **Deterministic Image Rendering** (`render_image`): HTML + Tailwind templates rendered into PNG/JPEG/WebP/SVG, plus animations (animated WebP/GIF/APNG from CSS `@keyframes`). Fully offline, no browser, milliseconds per render — for OG cards, banners, badges and data cards where exact text and layout matter.
+- 📄 **PDF Rendering** (`render_pdf`): HTML templates rendered into paged PDFs with selectable text, repeating headers/footers and page counters. Fully offline, no browser — for invoices, reports and certificates.
 - 🕒 **Time Accuracy**: Built-in tool to get precise system date and time for correct temporal context.
 - 📧 **Communication**: Send emails and push notifications to chat groups automatically.
 
@@ -50,6 +52,7 @@ Unlike "screen-seeing" agents (such as OpenClaw) that rely on visual interpretat
 - **UI**: Inquirer (interactivity), Chalk (styling), Ora (spinners)
 - **AI**: OpenAI SDK (any OpenAI-compatible endpoint: DeepSeek, Kimi, Qwen, GLM, Ollama, …)
 - **Web tools**: Playwright (headless Chromium for `read_website` / `take_screenshot`)
+- **Rendering**: Takumi (Rust engine via native binding — powers `render_image` / `render_pdf`, no browser)
 
 ## Installation
 
@@ -132,6 +135,22 @@ Unattempted tasks are simply absent from the results file, so `--fail-fast` foll
 
 AutoClaw also keeps its own prompt lean: optional tools (web search, email, group notifications, image generation) only register once their credentials are configured, and in long loops older tool results in the model context are replaced by short excerpts.
 
+### Skills (Portable Capability Packages)
+AutoClaw runs `SKILL.md` skill packages — the same format used by the WorkBuddy skill store, so one package runs both inside AutoClaw and on other platforms. The system prompt only carries a one-line manifest per skill; when a task matches, the agent reads that skill's `SKILL.md` and follows it with the normal file and shell tools. There is no privileged runtime: skill scripts pass through the same destructive-command gate, sandbox and step caps as any command.
+
+Scopes (later shadows earlier on name collision): built-in `skills/` (ships with the npm package) → `~/.autoclaw/skills/` → `.autoclaw/skills/`.
+
+```bash
+autoclaw skill list                     # show discovered skills with scope and version
+autoclaw skill install <zip|dir|https-url>  # install into ~/.autoclaw/skills/ (zip-slip protected)
+autoclaw skill remove <name>            # remove a user-installed skill (built-ins are protected)
+autoclaw skill pack <dir>               # zip a skill dir (skills/<name>/ root) for store upload
+```
+
+Install accepts any SKILL.md-compatible package: a local directory, a local zip, or an https download URL. It tolerates third-party layout variance (SKILL.md at the zip root, a plain folder, or a `skills/<name>/` wrapper, macOS `__MACOSX`/`.DS_Store` junk) and always installs under the skill's frontmatter `name`, so discovery and the manifest stay consistent.
+
+Three built-in skills, layered: [`code2media`](skills/code2media/SKILL.md) (Code to Media) is the universal rendering engine — a standalone Node script turning any HTML into images/SVG/paged PDFs/animations; [`poster-maker`](skills/poster-maker/SKILL.md) and [`invoice-maker`](skills/invoice-maker/SKILL.md) are independently optimized scenario skills carrying platform size specs, document layout conventions and quality checklists. The same zips publish to any SKILL.md-compatible store. Skills compose with batch mode: one manifest line like `{"id":"inv-042","task":"用 invoice-maker 技能根据 orders-042.json 生成发票 invoices/042.pdf"}` drives an isolated swarm worker through the same skill.
+
 ### Recipes
 
 Daily ops sweep on Linux (crontab):
@@ -206,6 +225,7 @@ AutoClaw uses a hierarchical configuration system.
 - `shellTimeout`: Shell command timeout in milliseconds (default: `120000`).
 - `taskTimeoutMs`: Whole-task wall-clock timeout in milliseconds (off by default; aborts in-flight API calls and stops with `timeout` status).
 - `sandbox`: Confine shell commands (`read-only`, `workspace-write`, `danger-full-access`; default: `danger-full-access`).
+- `skillsEnabled`: Set `false` to disable the skill system (default: `true`).
 - `shell`: Force a shell for `execute_shell_command` (`bash`, `powershell`, `cmd`, `sh`; default: auto-detect — Git Bash > PowerShell > cmd on Windows).
 - `tavilyApiKey`: API Key for Tavily Web Search.
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP Email settings.
@@ -250,6 +270,39 @@ Configure webhooks to receive alerts or reports in your team chat apps.
 Built-in utility to provide the agent with the current system time, ensuring accurate handling of relative time requests.
 - **Usage**: "What's the date today?" or "Remind me to check the logs next Monday."
 
+### Deterministic Rendering (Takumi)
+`render_image` turns HTML templates into precise images — PNG, JPEG, WebP or vector SVG — offline with no browser or AI model involved. `render_pdf` turns HTML templates into paged PDFs with selectable text, repeating header/footer bands, and `<span class="pageNumber">` / `<span class="totalPages">` counters. Templates are styled with inline CSS, `<style>` blocks, or Tailwind v4 utilities via the `tw` attribute (`<div tw="w-full h-full bg-blue-500">`); plain `class` attributes only match regular CSS selectors. Both tools auto-detect common system fonts (CJK/emoji included); register specific font files via `font_paths`.
+
+Typical workflows — describe the job in natural language and the agent writes the templates itself:
+
+```bash
+# Blog SEO: one OG share image per post
+autoclaw "Read the title and summary of every .md file in content/posts/ and render an OG share image (1200x630) for each into public/og/" -y -n
+
+# Finance / e-commerce: invoice PDFs from an orders export, then email them out
+autoclaw "Read orders.csv, render a PDF invoice for each order into invoices/ (A4, page-number footer), then email every invoice to the customer address in its row" -y
+
+# HR / training: personalized completion certificates for an attendee list
+autoclaw "Read attendees.json and render a completion certificate (1414x1000) for each attendee into certs/, numbered from AC-2026-0001" -y -n
+
+# Ops reporting under cron/CI: deterministic output — same input produces the same PDF
+autoclaw "Aggregate this week's nginx access log into a one-page A4 PDF report with a metrics table and save it as report.pdf" -y -n
+```
+
+Swarm scale via batch mode — each task renders in its own isolated agent:
+
+```bash
+cat > render-jobs.jsonl <<'EOF'
+{"id": "og-001", "task": "Render an OG share image for post-001.md into public/og/001.png"}
+{"id": "og-002", "task": "Render an OG share image for post-002.md into public/og/002.png"}
+EOF
+autoclaw batch render-jobs.jsonl -y -c 4
+```
+
+Tool choice: use `render_image` / `render_pdf` when exact text, layout and branding matter (cards, banners, badges, documents); use `generate_image` for artistic or photographic imagery. Emoji in templates are fetched from the Twemoji CDN by default, so fully offline environments should keep templates text-only.
+
+Runnable examples with committed previews: [examples/render](examples/render/README.md) (OG cards, social posters, KPI cards, weekly-report PDFs, SVG badges, certificates, animations, multi-page invoices — plus a real agent one-shot run under `agent-run/`). The same capability ships as a portable [WorkBuddy skill](skills/code2media/SKILL.md) (`code2media-skill.zip`) that renders HTML → image/SVG/PDF/animation via a standalone Node script on any machine with Node >= 20.19.
+
 ## Docker Support
 
 ### Build & Run
@@ -260,10 +313,10 @@ docker run --rm -v "$PWD":/workspace -w /workspace -e OPENAI_API_KEY=sk-... auto
 ```
 Note: browser-based tools (`read_website` / `take_screenshot`) are not functional in the default image since browsers are not bundled — they return a friendly install hint instead.
 
-### Chinese Font Issues in Screenshots
-When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts. Emojis (e.g., 🔥) may also appear as squares.
+### Chinese Font Issues in Screenshots and Rendered Output
+When running AutoClaw inside a Docker container (especially Alpine or Debian Slim), screenshots of Chinese websites may display text as square boxes ("tofu") due to missing fonts. Emojis (e.g., 🔥) may also appear as squares. The same affects `render_image` / `render_pdf` output containing CJK text.
 
-**Solution:** Install CJK (Chinese/Japanese/Korean) and Emoji fonts in your container.
+**Solution:** Install CJK (Chinese/Japanese/Korean) and Emoji fonts in your container. The render tools auto-detect the same font paths, so installing these packages fixes both screenshots and rendered images/PDFs.
 
 **For Debian/Ubuntu:**
 ```bash

@@ -30,8 +30,11 @@ Guard these properties when making changes: no new heavy dependencies, no intera
   - `shell.ts`: Shell resolution (Git Bash/PowerShell/cmd/sh), spawn-based execution with process-tree kill and UTF-8/GBK decoding.
   - `sandbox.ts`: Sandbox policy (read-only / workspace-write / danger-full-access) with bwrap / sandbox-exec backends; Windows fail-closed.
   - `batch.ts`: Batch execution over JSONL task manifests (manifest parsing + per-task orchestration).
+  - `skills.ts`: Skill system — SKILL.md parsing (zero-dependency YAML subset), scope discovery (builtin/user/project), system-prompt manifest, install/remove/pack.
+  - `zip.ts`: Minimal dependency-free ZIP reader/writer (deflate + CRC32, deterministic output, zip-slip protection) for skill packages.
   - `truncate.ts`, `retry.ts`: Tool-output truncation and API retry helpers.
-  - `tools/`: Tool modules (Shell, files, time, search, browser, screenshot, email, notify, image, prompt optimizer, background processes), each exporting a `ToolModule` registered in `tools/index.ts`.
+  - `tools/`: Tool modules (Shell, files, time, search, browser, screenshot, email, notify, image, render, prompt optimizer, background processes), each exporting a `ToolModule` registered in `tools/index.ts`.
+  - `../skills/`: Built-in skill packages shipped with the npm package via the `files` field; user skills live in `~/.autoclaw/skills/`, project skills in `.autoclaw/skills/`. Three built-ins, layered: `code2media` is the universal HTML→image/SVG/PDF/animation engine; `poster-maker` and `invoice-maker` are independently optimized scenario skills (platform size specs, document layout conventions, quality checklists). Naming: the general engine is input→output named; scenario skills are named by the scenario (what the user gets), never by implementation.
   - `*.test.ts`: Vitest unit tests, run with `npm test`.
 - `dist/`: Compiled JavaScript files.
 

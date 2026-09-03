@@ -1,0 +1,86 @@
+<div tw="w-full h-full flex flex-col p-10" style="font-family:msyh,NotoSansCJK-Regular,NotoSansCJKsc-Regular,wqy-zenhei">
+  <div tw="flex justify-between items-center">
+    <div>
+      <h1 tw="text-3xl font-bold text-slate-900">服务流量周报</h1>
+      <p tw="text-sm text-slate-400 mt-1">2026-08-31 ~ 2026-09-06 · 自动生成于每周一 09:00</p>
+    </div>
+    <span tw="px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 text-sm font-semibold">全部指标正常</span>
+  </div>
+
+  <div tw="flex gap-4 mt-6">
+    <div tw="flex-1 rounded-xl bg-slate-50 p-4">
+      <p tw="text-xs text-slate-400">总请求</p>
+      <p tw="text-2xl font-bold text-slate-800 mt-1">2,417,393</p>
+      <p tw="text-xs text-emerald-600 mt-1">▲ 8.2% 环比</p>
+    </div>
+    <div tw="flex-1 rounded-xl bg-slate-50 p-4">
+      <p tw="text-xs text-slate-400">平均延迟</p>
+      <p tw="text-2xl font-bold text-slate-800 mt-1">86ms</p>
+      <p tw="text-xs text-emerald-600 mt-1">▼ 12ms 环比</p>
+    </div>
+    <div tw="flex-1 rounded-xl bg-slate-50 p-4">
+      <p tw="text-xs text-slate-400">错误率</p>
+      <p tw="text-2xl font-bold text-slate-800 mt-1">0.03%</p>
+      <p tw="text-xs text-slate-400 mt-1">持平</p>
+    </div>
+    <div tw="flex-1 rounded-xl bg-slate-50 p-4">
+      <p tw="text-xs text-slate-400">可用性</p>
+      <p tw="text-2xl font-bold text-slate-800 mt-1">99.99%</p>
+      <p tw="text-xs text-emerald-600 mt-1">目标 99.9%</p>
+    </div>
+  </div>
+
+  <div tw="mt-6">
+    <h2 tw="text-lg font-bold text-slate-800">每日请求量(万次)</h2>
+    <div tw="flex items-end gap-3 mt-4" style="height:180px">
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">286</span>
+        <div tw="w-full rounded-t-lg bg-blue-500" style="height:52%"></div>
+        <span tw="text-xs text-slate-500">周一</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">312</span>
+        <div tw="w-full rounded-t-lg bg-blue-500" style="height:58%"></div>
+        <span tw="text-xs text-slate-500">周二</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">298</span>
+        <div tw="w-full rounded-t-lg bg-blue-500" style="height:55%"></div>
+        <span tw="text-xs text-slate-500">周三</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">405</span>
+        <div tw="w-full rounded-t-lg bg-blue-600" style="height:76%"></div>
+        <span tw="text-xs text-slate-500">周四</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">452</span>
+        <div tw="w-full rounded-t-lg bg-blue-600" style="height:85%"></div>
+        <span tw="text-xs text-slate-500">周五</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">351</span>
+        <div tw="w-full rounded-t-lg bg-blue-400" style="height:65%"></div>
+        <span tw="text-xs text-slate-500">周六</span>
+      </div>
+      <div tw="flex-1 flex flex-col items-center gap-2">
+        <span tw="text-xs text-slate-400">313</span>
+        <div tw="w-full rounded-t-lg bg-blue-400" style="height:58%"></div>
+        <span tw="text-xs text-slate-500">周日</span>
+      </div>
+    </div>
+  </div>
+
+  <div tw="mt-6 flex gap-6">
+    <div tw="flex-1">
+      <h2 tw="text-lg font-bold text-slate-800">异常事件</h2>
+      <ul tw="mt-3 space-y-2 text-sm text-slate-600">
+        <li>· 周四 14:20 缓存集群扩容,耗时 6 分钟,无请求失败</li>
+        <li>· 周五 09:05 上游依赖抖动 3 分钟,错误率瞬时升至 0.4% 后恢复</li>
+      </ul>
+    </div>
+    <div tw="flex-1 rounded-xl bg-blue-50 p-5">
+      <p tw="text-sm text-blue-900 leading-relaxed"><b>结论:</b>流量随工作日稳步增长,峰值出现在周五;延迟与错误率均在预算内,下周继续观察周五早高峰容量水位。</p>
+    </div>
+  </div>
+</div>

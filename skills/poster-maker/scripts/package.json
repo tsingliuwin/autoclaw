@@ -1,0 +1,10 @@
+{
+  "name": "poster-maker-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Renderer dependencies for the poster-maker skill (installed automatically on first run).",
+  "dependencies": {
+    "takumi-js": "^2.13.5",
+    "takumi-pdf": "^0.14.1"
+  }
+}

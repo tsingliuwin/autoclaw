@@ -41,6 +41,8 @@ AutoClaw 是一款针对 **“无界面系统” (Headless Systems)** 的高稳�
 - 🌐 **网页搜索**: 集成 Tavily，支持实时信息检索。
 - 🌍 **网页阅读与截图**: 提取文章正文、截取页面图片（需先执行 `npx playwright install chromium`）。
 - 🎨 **图像生成**: 通过任意 OpenAI 兼容的图像接口生成图片（兼容 DALL-E）。
+- 🖼️ **确定性图像渲染** (`render_image`): HTML + Tailwind 模板直接渲染为 PNG/JPEG/WebP/SVG,并支持动图(由 CSS `@keyframes` 采样的动画 WebP/GIF/APNG)。完全离线、无浏览器、毫秒级渲染——适合 OG 分享卡、横幅、徽章、数据卡片等对文字与排版精度有要求的场景。
+- 📄 **PDF 渲染** (`render_pdf`): HTML 模板直接渲染为分页 PDF，文字可选中、页眉页脚逐页重复、支持页码计数。完全离线、无浏览器——适合发票、报表、证书等结构化文档。
 - 🕒 **时间精准**: 内置工具获取精确系统日期和时间，确保正确的时间上下文。
 - 📧 **通讯能力**: 自动发送电子邮件并将通知推送至聊天群组。
 
@@ -51,6 +53,7 @@ AutoClaw 是一款针对 **“无界面系统” (Headless Systems)** 的高稳�
 - **UI**: Inquirer (交互), Chalk (样式), Ora (加载动画)
 - **AI**: OpenAI SDK（任意 OpenAI 兼容端点：DeepSeek、Kimi、Qwen、GLM、Ollama 等）
 - **网页工具**: Playwright（无头 Chromium，用于 `read_website` / `take_screenshot`）
+- **渲染引擎**: Takumi（Rust 引擎，经原生绑定驱动 `render_image` / `render_pdf`，无需浏览器）
 
 ## 安装
 
@@ -133,6 +136,22 @@ autoclaw batch big.jsonl -y -c 4            # 最多 4 个任务并行
 
 AutoClaw 同时会自动给提示词瘦身：可选工具（网页搜索、邮件、群通知、图像生成）只在凭据配置后才会注册进工具定义；长循环中较早的工具结果会被替换为短摘要。
 
+### 技能（可移植能力包）
+AutoClaw 支持 `SKILL.md` 技能包——与 WorkBuddy 技能商店相同的格式，一份技能包既能在 AutoClaw 内运行，也能发布到其它平台。system prompt 里每个技能只占一行清单；任务匹配时 agent 才去读取该技能的 `SKILL.md` 并照做，全程走普通的文件与 shell 工具。技能没有特权运行时：脚本同样经过破坏性命令闸、沙箱与步数上限。
+
+作用域（同名后者遮蔽前者）：内置 `skills/`（随 npm 包发布）→ `~/.autoclaw/skills/` → `.autoclaw/skills/`。
+
+```bash
+autoclaw skill list                     # 列出发现的技能(含作用域与版本)
+autoclaw skill install <zip|目录|https地址>  # 安装到 ~/.autoclaw/skills/(含 zip-slip 防护)
+autoclaw skill remove <name>            # 移除用户级技能(内置技能受保护)
+autoclaw skill pack <目录>               # 打包为商店上传 zip(zip 根为 skills/<name>/)
+```
+
+安装兼容任意 SKILL.md 格式的第三方包：本地目录、本地 zip 或 https 下载地址均可。对第三方布局差异做了容错（SKILL.md 位于 zip 根部、普通文件夹、`skills/<name>/` 包装、macOS 的 `__MACOSX`/`.DS_Store` 垃圾文件），并且始终按技能 frontmatter 的 `name` 安装，保证发现与清单的一致性。
+
+内置三个技能，分层协作：[`code2media`](skills/code2media/SKILL.md)（代码转多媒体）是通用渲染引擎——独立 Node 脚本把任意 HTML 变成图片/SVG/分页 PDF/动图；[`poster-maker`](skills/poster-maker/SKILL.md)（海报生成器）与 [`invoice-maker`](skills/invoice-maker/SKILL.md)（发票生成器）是独立优化的场景技能，各自沉淀了平台尺寸表、票据版式规范与质量清单。同一个 zip 可直接发布到任何兼容 SKILL.md 的商店。技能与 batch 模式天然组合：清单里一行 `{"id":"cert-042","task":"用 invoice-maker 技能根据 orders-042.json 生成发票 invoices/042.pdf"}` 就能让一个隔离的 swarm worker 跑同一个技能。
+
 ### 实战配方
 
 Linux 定时巡检（crontab）：
@@ -208,6 +227,7 @@ AutoClaw 使用层级配置系统。
 - `shellTimeout`: Shell 命令超时时间（毫秒）(默认: `120000`)。
 - `taskTimeoutMs`: 单任务整体墙钟超时（毫秒，默认关闭；会中断进行中的 API 调用并以 `timeout` 状态停止）。
 - `sandbox`: 约束 shell 命令（`read-only`、`workspace-write`、`danger-full-access`；默认 `danger-full-access`）。
+- `skillsEnabled`: 设为 `false` 关闭技能系统（默认开启）。
 - `shell`: 强制 `execute_shell_command` 使用的 shell (`bash`、`powershell`、`cmd`、`sh`；默认自动检测——Windows 上优先 Git Bash > PowerShell > cmd)。
 - `tavilyApiKey`: Tavily 网页搜索的 API 密钥。
 - `smtpHost`, `smtpPort`, `smtpUser`, `smtpPass`, `smtpFrom`: SMTP 邮件设置。
@@ -252,6 +272,39 @@ AutoClaw 使用层级配置系统。
 内置工具为 Agent 提供当前系统时间，确保准确处理相对时间请求。
 - **示例**: "今天是几号？" 或 "提醒我下周一检查日志。"
 
+### 确定性渲染 (Takumi)
+`render_image` 将 HTML 模板渲染为精确的图像——PNG、JPEG、WebP 或矢量 SVG——全程离线，不依赖浏览器或 AI 模型。`render_pdf` 将 HTML 模板渲染为分页 PDF，文字可选中，页眉/页脚逐页重复，并支持 `<span class="pageNumber">` / `<span class="totalPages">` 页码计数。模板样式支持内联 CSS、`<style>` 块，或通过 `tw` 属性使用 Tailwind v4 工具类（`<div tw="w-full h-full bg-blue-500">`）；普通 `class` 属性仅匹配常规 CSS 选择器。两个工具都会自动探测常见系统字体（含中日韩与 Emoji）；也可通过 `font_paths` 注册指定字体文件。
+
+典型工作流——用自然语言描述任务，模板由 agent 自己编写：
+
+```bash
+# 博客 SEO:为每篇文章生成 OG 分享图
+autoclaw "读取 content/posts/ 下每篇 .md 的标题和摘要,为每篇文章渲染一张 OG 分享图(1200x630)到 public/og/" -y -n
+
+# 财务/电商:从订单表批量生成 PDF 发票并邮件发送
+autoclaw "读取 orders.csv,为每个订单生成 PDF 发票保存到 invoices/(A4,页脚带页码),然后把每张发票邮件发送给该行记录的客户邮箱" -y
+
+# 培训/HR:为学员名单批量生成结业证书
+autoclaw "读取 attendees.json,为每位学员渲染一张结业证书(1414x1000)保存到 certs/,编号从 AC-2026-0001 起" -y -n
+
+# cron/CI 定时报告:输出确定——相同输入得到完全相同的 PDF,可做校验
+autoclaw "汇总本周 nginx 访问日志,生成一页 A4 的 PDF 流量周报(含指标表格),保存为 report.pdf" -y -n
+```
+
+集群规模用 batch 模式——每个任务在隔立的 agent 中渲染:
+
+```bash
+cat > render-jobs.jsonl <<'EOF'
+{"id": "og-001", "task": "为 post-001.md 渲染 OG 分享图到 public/og/001.png"}
+{"id": "og-002", "task": "为 post-002.md 渲染 OG 分享图到 public/og/002.png"}
+EOF
+autoclaw batch render-jobs.jsonl -y -c 4
+```
+
+选型提示:需要精确文字、排版与品牌一致性(卡片、横幅、徽章、文档)时用 `render_image` / `render_pdf`;艺术创作、照片类图像用 `generate_image`。模板中的 Emoji 默认从 Twemoji CDN 在线获取,完全离线的环境请让模板保持纯文本。
+
+可运行案例与渲染效果预览:[examples/render](examples/render/README.zh-CN.md)(OG 分享卡、社媒海报、KPI 指标卡、周报 PDF、SVG 徽章、证书、动图、多页采购订单——`agent-run/` 下还有一次真实 agent 无头运行的产物)。同一能力也打包成了可移植的 [WorkBuddy 技能](skills/code2media/SKILL.md)(`code2media-skill.zip`):一个独立 Node 脚本,任何装有 Node >= 20.19 的机器都能把 HTML 渲染成图片/SVG/PDF/动图。
+
 ## Docker 支持
 
 ### 构建与运行
@@ -262,10 +315,10 @@ docker run --rm -v "$PWD":/workspace -w /workspace -e OPENAI_API_KEY=sk-... auto
 ```
 注意：默认镜像中未内置浏览器，基于浏览器的工具（`read_website` / `take_screenshot`）不可用——它们会返回友好的安装提示，而不是报错崩溃。
 
-### 截图中的中文显示问题
-在 Docker 容器（尤其是 Alpine 或 Debian Slim）中运行时，网页截图中的中文可能会显示为方块（"豆腐块"）。表情符号（如 🔥）也可能显示为方块。
+### 截图与渲染输出中的中文显示问题
+在 Docker 容器（尤其是 Alpine 或 Debian Slim）中运行时，网页截图中的中文可能会显示为方块（"豆腐块"）。表情符号（如 🔥）也可能显示为方块。`render_image` / `render_pdf` 输出中包含中日韩文字时同样受影响。
 
-**解决方案:** 在容器中安装 CJK（中日韩）和 Emoji 字体。
+**解决方案:** 在容器中安装 CJK（中日韩）和 Emoji 字体。渲染工具会自动探测同一批字体路径，因此安装这些字体包可以同时修复截图与渲染输出的中文显示。
 
 **Debian/Ubuntu:**
 ```bash

@@ -4,6 +4,5 @@ dist
 .vscode
 .claude
 coverage
-*-skill.zip
 test-invoice.*
 test-poster.*

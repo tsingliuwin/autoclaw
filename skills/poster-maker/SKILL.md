@@ -6,7 +6,7 @@ description: 生成海报/做海报/公众号封面/小红书配图/朋友圈配
 description_zh: 生成社媒视觉物料:海报、公众号封面、小红书/朋友圈配图、OG 分享卡、头图、横幅。大字排版 + 品牌渐变,像素精确、离线毫秒级出图,内置封面/OG/方图等现成模板与尺寸规范。
 description_en: Generate social-ready posters, article covers, OG/share cards and banners with big-type layouts and brand gradients. Pixel-exact, offline, milliseconds per render, with ready-made templates and platform size specs.
 category: image
-version: 1.1.0
+version: 1.1.1
 author: AutoClaw
 ---
 
@@ -71,6 +71,7 @@ author: AutoClaw
 - **中文不斜体**(斜体在无衬线中文里很丑),强调用加粗/变色/字号
 - **一图一重点**:不要把所有信息塞进一张图;胶囊标签 ≤ 3 个
 - **品牌一致性**:有品牌色/Logo 就放角标位,颜色用品牌色的渐变家族
+- **渲染后目检样式**:某元素样式没生效(字号/间距突然不对),先查是否把工具类写进了 `class`——工具类必须写 `tw`,`class` 里的会静默失效不报错
 - 字体:`style="font-family:msyh,NotoSansCJK-Regular,wqy-zenhei"`,离线环境 Emoji 保持纯文本
 
 ## 批量与变体

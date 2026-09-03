@@ -1,12 +1,12 @@
 ---
 name: code2media
-display_name: 代码转多媒体（HTML → 图片/PDF/动图）
-display_name_en: Code to Media (HTML → images/PDF/animations)
-description: Universal renderer — turn any HTML into pixel-perfect PNG/JPEG/WebP images, vector SVG, paged PDFs and animated WebP/GIF. Offline, no browser. Use when the user wants to 把内容/代码/数据变成图片或PDF, 生成图片/OG图/徽章/数据卡片/动图, 生成PDF/报告/发票/工单, or render HTML to image or PDF. For deep scenario optimization see sibling skills (posters, invoices, certificates).
-description_zh: 通用多媒体渲染:把任意 HTML 变成精确的图片(PNG/JPEG/WebP)、矢量 SVG、分页 PDF 和动图(WebP/GIF)。离线渲染,无需浏览器,毫秒级出图,文字排版 100% 精确。通用兜底;海报/发票/证书等具体场景有专属技能时优先用专属技能。
-description_en: Universal multimedia renderer — any HTML becomes precise images (PNG/JPEG/WebP), vector SVG, paged PDFs and animations (WebP/GIF). Offline, no browser, millisecond-per-render. General fallback; prefer dedicated scenario skills (posters, invoices, certificates) when available.
+display_name: 代码转多媒体
+display_name_en: Code to Media
+description: Universal media renderer with no fixed template — any custom layout, size or style becomes pixel-perfect images (PNG/JPEG/WebP), vector SVG, paged PDFs or animations (WebP/GIF). Use when no dedicated scenario skill fits: 自定义图形/任意尺寸图片/数据图表卡片/一次性版式/长文转PDF/出动图/GIF动画/内容可视化. Do not use for posters or covers (poster-maker) or invoices/quotes/receipts (invoice-maker).
+description_zh: 通用多媒体渲染:不限模板、尺寸与风格,把内容渲染成精确的图片、矢量 SVG、分页 PDF 和动图。离线渲染,无需浏览器,毫秒级出图,文字排版 100% 精确。
+description_en: The universal media renderer — no fixed templates, any layout, size or style, rendered as precise images, vector SVG, paged PDFs and animations. Offline, no browser, millisecond-per-render.
 category: image
-version: 1.2.0
+version: 1.2.1
 author: AutoClaw
 ---
 

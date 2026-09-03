@@ -303,7 +303,7 @@ autoclaw batch render-jobs.jsonl -y -c 4
 
 选型提示:需要精确文字、排版与品牌一致性(卡片、横幅、徽章、文档)时用 `render_image` / `render_pdf`;艺术创作、照片类图像用 `generate_image`。模板中的 Emoji 默认从 Twemoji CDN 在线获取,完全离线的环境请让模板保持纯文本。
 
-可运行案例与渲染效果预览:[examples/render](examples/render/README.zh-CN.md)(OG 分享卡、社媒海报、KPI 指标卡、周报 PDF、SVG 徽章、证书、动图、多页采购订单——`agent-run/` 下还有一次真实 agent 无头运行的产物)。同一能力也打包成了可移植的 [WorkBuddy 技能](skills/code2media/SKILL.md)(`code2media-skill-1.2.0.zip`):一个独立 Node 脚本,任何装有 Node >= 20.19 的机器都能把 HTML 渲染成图片/SVG/PDF/动图。
+可运行案例与渲染效果预览:[examples/render](examples/render/README.zh-CN.md)(OG 分享卡、社媒海报、KPI 指标卡、周报 PDF、SVG 徽章、证书、动图、多页采购订单——`agent-run/` 下还有一次真实 agent 无头运行的产物)。同一能力也打包成了可移植的 [WorkBuddy 技能](skills/code2media/SKILL.md)(`code2media-skill-1.2.1.zip`):一个独立 Node 脚本,任何装有 Node >= 20.19 的机器都能把 HTML 渲染成图片/SVG/PDF/动图。
 
 ## Docker 支持
 

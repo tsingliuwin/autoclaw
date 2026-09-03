@@ -2,11 +2,11 @@
 name: poster-maker
 display_name: 海报生成器（社媒封面/分享卡/OG图）
 display_name_en: Poster Maker (social covers, share cards, OG images)
-description: Generate social-ready visual posters, WeChat article covers, OG/share cards and community post images with big-type layouts and brand gradients — pixel-exact, offline. Use when the user wants to 生成海报/做海报/公众号封面/小红书配图/朋友圈配图/OG图/分享卡/头图/横幅/banner/封面图.
+description: 生成海报/做海报/公众号封面/小红书配图/朋友圈配图/OG图/分享卡/头图/横幅/banner — social-ready posters, covers and share cards with big-type layouts, brand gradients and platform size specs. Pixel-exact, offline, no browser.
 description_zh: 生成社媒视觉物料:海报、公众号封面、小红书/朋友圈配图、OG 分享卡、头图、横幅。大字排版 + 品牌渐变,像素精确、离线毫秒级出图,内置封面/OG/方图等现成模板与尺寸规范。
 description_en: Generate social-ready posters, article covers, OG/share cards and banners with big-type layouts and brand gradients. Pixel-exact, offline, milliseconds per render, with ready-made templates and platform size specs.
 category: image
-version: 1.0.0
+version: 1.0.1
 author: AutoClaw
 ---
 

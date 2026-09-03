@@ -152,7 +152,7 @@ export function buildSkillsManifest(config?: any, scopes?: SkillScope[]): string
   const visible = skills.filter(s => s.disableModelInvocation !== true);
   if (visible.length === 0) return null;
   const lines = visible.map(s =>
-    `- ${s.name}${s.version ? ` (v${s.version})` : ''}: ${truncate(s.description, 160)} [read ${s.skillMdPath}]`
+    `- ${s.name}${s.version ? ` (v${s.version})` : ''}: ${truncate(s.description, 400)} [read ${s.skillMdPath}]`
   );
   return [
     'INSTALLED SKILL PACKAGES (procedural capabilities bundling instructions, scripts and templates).',

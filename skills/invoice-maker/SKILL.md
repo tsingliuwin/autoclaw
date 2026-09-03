@@ -2,11 +2,11 @@
 name: invoice-maker
 display_name: 发票生成器（报价单/收据/采购单）
 display_name_en: Invoice Maker (quotes, receipts, purchase orders)
-description: Generate formal business documents as paged PDFs — invoices, quotes, purchase orders, receipts, statements — with proper tables, tax lines, page numbers and bilingual layouts. Use when the user wants to 开发票/生成发票/报价单/收据/采购单/对账单/账单/付款通知 or make an invoice/quote/receipt PDF.
+description: 开发票/生成发票/报价单/收据/采购单/对账单/账单/付款通知 — formal business documents as paged PDFs with proper tables, right-aligned amounts, tax lines, repeating headers and page-number footers. Offline, batch-ready, bilingual layouts.
 description_zh: 生成正式商务票据 PDF:发票、报价单、收据、采购单、对账单、账单。金额右对齐、税行规范、表格跨页表头重复、页码页脚,中英双语排版可选。离线毫秒级渲染,支持按订单数据批量出票。
 description_en: Generate formal business document PDFs — invoices, quotes, purchase orders, receipts, statements. Right-aligned amounts, tax lines, repeating table headers across pages, page-number footers, optional bilingual layouts. Offline, batch-ready.
 category: office
-version: 1.0.0
+version: 1.0.1
 author: AutoClaw
 ---
 

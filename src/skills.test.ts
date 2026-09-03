@@ -149,7 +149,7 @@ describe('buildSkillsManifest', () => {
     writeSkill(scopes[0].dir, 'long', long.replace('demo-skill', 'long-skill'));
     const manifest = buildSkillsManifest({}, scopes);
     expect(manifest).toContain('…');
-    expect(manifest!.split('\n').find(l => l.includes('long-skill'))!.length).toBeLessThan(300);
+    expect(manifest!.split('\n').find(l => l.includes('long-skill'))!.length).toBeLessThan(640);
   });
 });
 

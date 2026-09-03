@@ -144,7 +144,7 @@ Scopes (later shadows earlier on name collision): built-in `skills/` (ships with
 autoclaw skill list                     # show discovered skills with scope and version
 autoclaw skill install <zip|dir|https-url>  # install into ~/.autoclaw/skills/ (zip-slip protected)
 autoclaw skill remove <name>            # remove a user-installed skill (built-ins are protected)
-autoclaw skill pack <dir>               # zip a skill dir (skills/<name>/ root) for store upload
+autoclaw skill pack <dir>               # zip a skill dir -> <name>-skill-<version>.zip for store upload
 ```
 
 Install accepts any SKILL.md-compatible package: a local directory, a local zip, or an https download URL. It tolerates third-party layout variance (SKILL.md at the zip root, a plain folder, or a `skills/<name>/` wrapper, macOS `__MACOSX`/`.DS_Store` junk) and always installs under the skill's frontmatter `name`, so discovery and the manifest stay consistent.
@@ -301,7 +301,7 @@ autoclaw batch render-jobs.jsonl -y -c 4
 
 Tool choice: use `render_image` / `render_pdf` when exact text, layout and branding matter (cards, banners, badges, documents); use `generate_image` for artistic or photographic imagery. Emoji in templates are fetched from the Twemoji CDN by default, so fully offline environments should keep templates text-only.
 
-Runnable examples with committed previews: [examples/render](examples/render/README.md) (OG cards, social posters, KPI cards, weekly-report PDFs, SVG badges, certificates, animations, multi-page invoices — plus a real agent one-shot run under `agent-run/`). The same capability ships as a portable [WorkBuddy skill](skills/code2media/SKILL.md) (`code2media-skill.zip`) that renders HTML → image/SVG/PDF/animation via a standalone Node script on any machine with Node >= 20.19.
+Runnable examples with committed previews: [examples/render](examples/render/README.md) (OG cards, social posters, KPI cards, weekly-report PDFs, SVG badges, certificates, animations, multi-page invoices — plus a real agent one-shot run under `agent-run/`). The same capability ships as a portable [WorkBuddy skill](skills/code2media/SKILL.md) (`code2media-skill-1.2.0.zip`) that renders HTML → image/SVG/PDF/animation via a standalone Node script on any machine with Node >= 20.19.
 
 ## Docker Support
 

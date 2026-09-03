@@ -289,13 +289,15 @@ export function removeSkill(name: string, opts?: { userDir?: string; scopes?: Sk
 
 // ---- pack (store-upload artifact: zip with skills/<name>/ at its root) ----
 
-export function packSkill(dir: string, outPath?: string): { zipPath: string; fileCount: number; name: string } {
+export function packSkill(dir: string, outPath?: string): { zipPath: string; fileCount: number; name: string; version?: string } {
   const abs = path.resolve(dir);
   const skillMdPath = path.join(abs, 'SKILL.md');
   if (!fs.existsSync(skillMdPath)) throw new Error(`${abs} is not a skill (no SKILL.md)`);
   const parsed = parseSkillMd(fs.readFileSync(skillMdPath, 'utf-8'));
   const name = parsed?.frontmatter.name || path.basename(abs);
-  if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error(`unsafe skill name: ${name}`);
+  if (!isSafeSkillName(name)) throw new Error(`unsafe skill name: ${name}`);
+  const version = parsed?.frontmatter.version;
+  const versionTag = version ? version.replace(/[^A-Za-z0-9._-]/g, '-') : undefined;
 
   const files: { path: string; data: Buffer }[] = [];
   const walk = (current: string, rel: string) => {
@@ -309,7 +311,7 @@ export function packSkill(dir: string, outPath?: string): { zipPath: string; fil
   };
   walk(abs, '');
 
-  const zipPath = outPath || path.resolve(process.cwd(), `${name}-skill.zip`);
+  const zipPath = outPath || path.resolve(process.cwd(), versionTag ? `${name}-skill-${versionTag}.zip` : `${name}-skill.zip`);
   fs.writeFileSync(zipPath, createZip(files));
-  return { zipPath, fileCount: files.length, name };
+  return { zipPath, fileCount: files.length, name, version };
 }

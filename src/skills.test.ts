@@ -187,6 +187,7 @@ describe('install / remove / pack roundtrip', () => {
     const packed = packSkill(src, path.join(tmpDir, 'roundtrip-skill.zip'));
     expect(packed.name).toBe('roundtrip');
     expect(packed.fileCount).toBe(4);
+    expect(packed.version).toBe('1.2.0');
 
     const entries = readZip(fs.readFileSync(packed.zipPath)).map(e => e.path);
     expect(entries).toContain('skills/roundtrip/SKILL.md');
@@ -195,6 +196,19 @@ describe('install / remove / pack roundtrip', () => {
     const installed = installSkill(packed.zipPath, { userDir });
     expect(installed.name).toBe('roundtrip');
     expect(fs.readFileSync(path.join(userDir, 'roundtrip', 'references', 'guide.md'), 'utf-8')).toBe('# Guide');
+  });
+
+  it('names the default zip after the skill and its version', () => {
+    const src = writeSkill(path.join(tmpDir, 'vskill'), 'versioned', SAMPLE_SKILL_MD.replace('demo-skill', 'versioned'));
+    process.chdir(tmpDir);
+    try {
+      const packed = packSkill(src);
+      expect(packed.version).toBe('1.2.0');
+      expect(path.basename(packed.zipPath)).toBe('versioned-skill-1.2.0.zip');
+      expect(fs.existsSync(packed.zipPath)).toBe(true);
+    } finally {
+      process.chdir(os.tmpdir());
+    }
   });
 
   it('rejects zips without SKILL.md', () => {

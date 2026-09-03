@@ -287,7 +287,7 @@ export function removeSkill(name: string, opts?: { userDir?: string; scopes?: Sk
   return 'removed';
 }
 
-// ---- pack (store-upload artifact: zip with skills/<name>/ at its root) ----
+// ---- pack (store-upload artifact: SKILL.md sits at the zip root) ----
 
 export function packSkill(dir: string, outPath?: string): { zipPath: string; fileCount: number; name: string; version?: string } {
   const abs = path.resolve(dir);
@@ -306,7 +306,7 @@ export function packSkill(dir: string, outPath?: string): { zipPath: string; fil
       const child = path.join(current, entry.name);
       const childRel = rel ? `${rel}/${entry.name}` : entry.name;
       if (entry.isDirectory()) walk(child, childRel);
-      else if (entry.isFile()) files.push({ path: `skills/${name}/${childRel}`, data: fs.readFileSync(child) });
+      else if (entry.isFile()) files.push({ path: childRel, data: fs.readFileSync(child) });
     }
   };
   walk(abs, '');

@@ -145,7 +145,7 @@ AutoClaw 支持 `SKILL.md` 技能包——与 WorkBuddy 技能商店相同的格
 autoclaw skill list                     # 列出发现的技能(含作用域与版本)
 autoclaw skill install <zip|目录|https地址>  # 安装到 ~/.autoclaw/skills/(含 zip-slip 防护)
 autoclaw skill remove <name>            # 移除用户级技能(内置技能受保护)
-autoclaw skill pack <目录>               # 打包为商店上传 zip(默认 <name>-skill-<version>.zip)
+autoclaw skill pack <目录>               # 打包为商店上传 zip(默认 <name>-skill-<version>.zip,SKILL.md 位于 zip 根目录)
 ```
 
 安装兼容任意 SKILL.md 格式的第三方包：本地目录、本地 zip 或 https 下载地址均可。对第三方布局差异做了容错（SKILL.md 位于 zip 根部、普通文件夹、`skills/<name>/` 包装、macOS 的 `__MACOSX`/`.DS_Store` 垃圾文件），并且始终按技能 frontmatter 的 `name` 安装，保证发现与清单的一致性。

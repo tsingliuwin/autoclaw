@@ -190,8 +190,8 @@ describe('install / remove / pack roundtrip', () => {
     expect(packed.version).toBe('1.2.0');
 
     const entries = readZip(fs.readFileSync(packed.zipPath)).map(e => e.path);
-    expect(entries).toContain('skills/roundtrip/SKILL.md');
-    expect(entries).toContain('skills/roundtrip/scripts/run.mjs');
+    expect(entries).toContain('SKILL.md'); // zip root is the skill itself, no wrapper dirs
+    expect(entries).toContain('scripts/run.mjs');
 
     const installed = installSkill(packed.zipPath, { userDir });
     expect(installed.name).toBe('roundtrip');
@@ -260,7 +260,7 @@ describe('install / remove / pack roundtrip', () => {
   });
 
   it('installs from an https URL', async () => {
-    const zip = createZip([{ path: 'skills/url-skill/SKILL.md', data: Buffer.from(SAMPLE_SKILL_MD.replace('demo-skill', 'url-skill')) }]);
+    const zip = createZip([{ path: 'SKILL.md', data: Buffer.from(SAMPLE_SKILL_MD.replace('demo-skill', 'url-skill')) }]);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       arrayBuffer: () => Promise.resolve(zip.buffer.slice(zip.byteOffset, zip.byteOffset + zip.byteLength))

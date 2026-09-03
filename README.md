@@ -144,7 +144,7 @@ Scopes (later shadows earlier on name collision): built-in `skills/` (ships with
 autoclaw skill list                     # show discovered skills with scope and version
 autoclaw skill install <zip|dir|https-url>  # install into ~/.autoclaw/skills/ (zip-slip protected)
 autoclaw skill remove <name>            # remove a user-installed skill (built-ins are protected)
-autoclaw skill pack <dir>               # zip a skill dir -> <name>-skill-<version>.zip for store upload
+autoclaw skill pack <dir>               # zip a skill dir -> <name>-skill-<version>.zip (SKILL.md at zip root)
 ```
 
 Install accepts any SKILL.md-compatible package: a local directory, a local zip, or an https download URL. It tolerates third-party layout variance (SKILL.md at the zip root, a plain folder, or a `skills/<name>/` wrapper, macOS `__MACOSX`/`.DS_Store` junk) and always installs under the skill's frontmatter `name`, so discovery and the manifest stay consistent.

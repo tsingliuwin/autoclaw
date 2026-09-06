@@ -2,11 +2,11 @@
 name: code2media
 display_name: 代码转多媒体
 display_name_en: Code to Media
-description: Universal media renderer with no fixed template — any custom layout, size or style becomes pixel-perfect images (PNG/JPEG/WebP), vector SVG, paged PDFs or animations (WebP/GIF). Use when no dedicated scenario skill fits: 自定义图形/任意尺寸图片/数据图表卡片/一次性版式/长文转PDF/出动图/GIF动画/内容可视化. Do not use for posters or covers (poster-maker) or invoices/quotes/receipts (invoice-maker).
+description: "Universal media renderer with no fixed template — any custom layout, size or style becomes pixel-perfect images (PNG/JPEG/WebP), vector SVG, paged PDFs or animations (WebP/GIF). Use when no dedicated scenario skill fits: 自定义图形/任意尺寸图片/数据图表卡片/一次性版式/长文转PDF/出动图/GIF动画/内容可视化. Do not use for posters or covers (poster-maker) or invoices/quotes/receipts (invoice-maker)."
 description_zh: 通用多媒体渲染:不限模板、尺寸与风格,把内容渲染成精确的图片、矢量 SVG、分页 PDF 和动图。离线渲染,无需浏览器,毫秒级出图,文字排版 100% 精确。
 description_en: The universal media renderer — no fixed templates, any layout, size or style, rendered as precise images, vector SVG, paged PDFs and animations. Offline, no browser, millisecond-per-render.
 category: image
-version: 1.2.1
+version: 1.2.2
 author: AutoClaw
 ---
 
